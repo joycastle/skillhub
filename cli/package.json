@@ -1,6 +1,6 @@
 {
   "name": "@astron-team/skillhub",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Manage and install skills for AI coding agents",
   "keywords": [
     "skillhub",
@@ -31,9 +31,13 @@
     "LICENSE"
   ],
   "scripts": {
+    "prebuild": "bun run scripts/generate-pkg-info.ts",
     "build": "bun build src/index.ts --target=node --outfile=dist/index.js",
+    "pretest": "bun run scripts/generate-pkg-info.ts",
     "test": "bun test",
+    "pretypecheck": "bun run scripts/generate-pkg-info.ts",
     "typecheck": "tsc --noEmit",
+    "prelint": "bun run scripts/generate-pkg-info.ts",
     "lint": "eslint src test --ext .ts"
   },
   "publishConfig": {

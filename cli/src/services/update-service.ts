@@ -1,4 +1,5 @@
 import { gt as semverGt } from 'semver'
+import { CLI_PACKAGE_NAME } from '../shared/constants'
 import type { InstallMode } from '../platform/package-manager'
 import type { UpdaterRunResult } from '../platform/updater'
 
@@ -6,7 +7,7 @@ export interface UpdateServiceDeps {
   currentVersion: string
   latestVersion: () => Promise<string>
   detectInstallMode: () => InstallMode
-  run: (command: string) => Promise<UpdaterRunResult>
+  run: (command: readonly string[]) => Promise<UpdaterRunResult>
 }
 
 export interface UpdateOptions {
@@ -59,11 +60,11 @@ export class UpdateService {
           available: true,
           currentVersion: current,
           latestVersion: latest,
-          next: 'Run: npx skillhub@latest <command> or install globally: npm install -g skillhub'
+          next: `Run: npx ${CLI_PACKAGE_NAME}@latest <command> or install globally: npm install -g ${CLI_PACKAGE_NAME}`
         }
 
       case 'npm-global': {
-        const result = await this.deps.run('npm install -g skillhub@latest')
+        const result = await this.deps.run(['npm', 'install', '-g', `${CLI_PACKAGE_NAME}@latest`])
         return {
           updated: result.success,
           available: true,
@@ -74,7 +75,7 @@ export class UpdateService {
       }
 
       case 'bun-global': {
-        const result = await this.deps.run('bun add -g skillhub@latest')
+        const result = await this.deps.run(['bun', 'add', '-g', `${CLI_PACKAGE_NAME}@latest`])
         return {
           updated: result.success,
           available: true,
@@ -91,7 +92,7 @@ export class UpdateService {
           available: true,
           currentVersion: current,
           latestVersion: latest,
-          next: 'Update manually: npm install -g skillhub@latest or bun add -g skillhub@latest'
+          next: `Update manually: npm install -g ${CLI_PACKAGE_NAME}@latest or bun add -g ${CLI_PACKAGE_NAME}@latest`
         }
     }
   }

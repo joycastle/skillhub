@@ -13,11 +13,11 @@ describe('UpdateService', () => {
     const result = await service.update({ checkOnly: false })
 
     expect(result.updated).toBe(false)
-    expect(result.next).toContain('npx skillhub@latest')
+    expect(result.next).toContain('npx @astron-team/skillhub@latest')
   })
 
   test('npm-global install mode runs npm update', async () => {
-    let executed = ''
+    let executed: readonly string[] = []
     const service = new UpdateService({
       currentVersion: '0.1.0',
       latestVersion: async () => '0.2.0',
@@ -28,11 +28,11 @@ describe('UpdateService', () => {
     const result = await service.update({ checkOnly: false })
 
     expect(result.updated).toBe(true)
-    expect(executed).toContain('npm install -g skillhub@latest')
+    expect(executed).toEqual(['npm', 'install', '-g', '@astron-team/skillhub@latest'])
   })
 
   test('bun-global install mode runs bun update', async () => {
-    let executed = ''
+    let executed: readonly string[] = []
     const service = new UpdateService({
       currentVersion: '0.1.0',
       latestVersion: async () => '0.2.0',
@@ -43,7 +43,7 @@ describe('UpdateService', () => {
     const result = await service.update({ checkOnly: false })
 
     expect(result.updated).toBe(true)
-    expect(executed).toContain('bun add -g skillhub@latest')
+    expect(executed).toEqual(['bun', 'add', '-g', '@astron-team/skillhub@latest'])
   })
 
   test('unknown install mode only suggests next command', async () => {

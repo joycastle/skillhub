@@ -72,6 +72,7 @@ export async function helpCommand(args: string[]): Promise<string> {
   const topic = args.find(arg => !arg.startsWith('--'))
   if (json) {
     if (topic) {
+      // TODO: unknown topic returns undefined and crashes on detail.usage; see help-command.test.ts
       const detail = commands[topic as keyof typeof commands]
       return printResult({ ok: true, command: topic, ...detail }, true)
     }

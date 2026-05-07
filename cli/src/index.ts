@@ -175,6 +175,7 @@ cli
   .command('help [command]', 'Show help')
   .option('--json', 'Output JSON')
   .action((command: string | undefined, options: { json?: boolean }) => {
+    // TODO: --json is not forwarded to helpCommand; see help-command.test.ts
     return runCommand(() => helpCommand(command ? [command] : []), Boolean(options.json))
   })
 

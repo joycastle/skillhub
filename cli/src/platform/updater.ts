@@ -8,11 +8,11 @@ export interface UpdaterRunResult {
 
 /**
  * Execute an update command without relying on sh -c.
- * Splits the command string into program + args for cross-platform compatibility.
+ * Accepts argv array (program + args) to avoid split fragility with spaces or shell metacharacters.
  */
-export async function runUpdateCommand(command: string): Promise<UpdaterRunResult> {
+export async function runUpdateCommand(command: readonly string[]): Promise<UpdaterRunResult> {
   try {
-    const [program, ...args] = command.split(/\s+/)
+    const [program, ...args] = command
     if (!program) {
       return { success: false, output: 'empty update command' }
     }

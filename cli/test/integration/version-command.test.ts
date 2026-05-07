@@ -4,13 +4,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runCli } from '../helpers/run-cli'
+import { CLI_VERSION } from '../../src/shared/constants'
 
 describe('version command', () => {
   test('prints human readable version', async () => {
     const result = await runCli(['version'])
     expect(result.exitCode).toBe(0)
     expect(result.stdout).toContain('SkillHub CLI')
-    expect(result.stdout).toContain('0.1.0')
+    expect(result.stdout).toContain(CLI_VERSION)
     expect(result.stderr).toBe('')
   })
 
@@ -19,7 +20,7 @@ describe('version command', () => {
     expect(result.exitCode).toBe(0)
     expect(JSON.parse(result.stdout)).toEqual({
       ok: true,
-      version: '0.1.0'
+      version: CLI_VERSION
     })
   })
 

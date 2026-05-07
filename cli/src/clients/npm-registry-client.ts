@@ -1,4 +1,4 @@
-import { EXIT } from '../shared/constants'
+import { EXIT, CLI_PACKAGE_NAME } from '../shared/constants'
 import { CliError } from '../shared/errors'
 
 export class NpmRegistryClient {
@@ -7,7 +7,7 @@ export class NpmRegistryClient {
     private readonly timeoutMs = 10_000
   ) {}
 
-  async latestVersion(packageName = 'skillhub'): Promise<string> {
+  async latestVersion(packageName = CLI_PACKAGE_NAME): Promise<string> {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), this.timeoutMs)
     try {

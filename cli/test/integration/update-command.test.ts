@@ -15,7 +15,7 @@ describe('update command', () => {
     // Should either succeed with version info or fail with error message
     const hasOutput = result.stdout.length > 0 || result.stderr.length > 0
     expect(hasOutput).toBe(true)
-  })
+  }, 30_000)
 
   test('update --check --json produces parseable output on success', async () => {
     const result = await runCli(['update', '--check', '--json'])
@@ -27,5 +27,5 @@ describe('update command', () => {
     }
     // If failed, that's also acceptable in test environment
     expect(true).toBe(true)
-  })
+  }, 30_000)
 })

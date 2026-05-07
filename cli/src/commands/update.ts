@@ -3,24 +3,42 @@ import { CliError } from '../shared/errors'
 import { printResult } from '../shared/output'
 import { NpmRegistryClient } from '../clients/npm-registry-client'
 import { UpdateService } from '../services/update-service'
-import { detectInstallMode } from '../platform/package-manager'
+import { detectInstallMode, type InstallMode } from '../platform/package-manager'
 import { runUpdateCommand } from '../platform/updater'
+import type { UpdaterRunResult } from '../platform/updater'
 
 export interface UpdateCommandOptions {
   check?: boolean
   json?: boolean
 }
 
-export async function updateCommand(options: UpdateCommandOptions): Promise<string> {
+/**
+ * Injectable runtime dependencies. Defaults are wired to real npm/shell code
+ * for production. Unit tests pass fakes so they don't need process-global
+ * module mocks (which leak across files inside Bun's test runner).
+ */
+export interface UpdateCommandDeps {
+  latestVersion?: () => Promise<string>
+  detectInstallMode?: () => InstallMode
+  run?: (command: readonly string[]) => Promise<UpdaterRunResult>
+}
+
+export async function updateCommand(
+  options: UpdateCommandOptions,
+  deps: UpdateCommandDeps = {}
+): Promise<string> {
   const json = Boolean(options.json)
   const checkOnly = Boolean(options.check)
 
-  const npmClient = new NpmRegistryClient()
+  const latestVersion = deps.latestVersion ?? (() => new NpmRegistryClient().latestVersion())
+  const detectMode = deps.detectInstallMode ?? (() => detectInstallMode())
+  const run = deps.run ?? runUpdateCommand
+
   const service = new UpdateService({
     currentVersion: CLI_VERSION,
-    latestVersion: () => npmClient.latestVersion(),
-    detectInstallMode: () => detectInstallMode(),
-    run: runUpdateCommand
+    latestVersion,
+    detectInstallMode: detectMode,
+    run
   })
 
   const result = await service.update({ checkOnly })
