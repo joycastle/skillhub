@@ -95,12 +95,20 @@ NODE
 EOF
   chmod +x "$repo/bin/npm"
 
+  # Ignore test scaffolding files so they don't make `git status` dirty.
+  cat >"$repo/.gitignore" <<EOF
+stdout.log
+stderr.log
+git-push-log.txt
+bin-git/
+EOF
+
   git init -q --bare "$origin"
   git -C "$repo" init -q -b main
   git -C "$repo" config user.name "Test User"
   git -C "$repo" config user.email "test@example.com"
   git -C "$repo" remote add origin "$origin"
-  git -C "$repo" add cli/package.json scripts/publish-cli.sh bin/npm
+  git -C "$repo" add cli/package.json scripts/publish-cli.sh bin/npm .gitignore
   git -C "$repo" commit -q -m "init"
   git -C "$repo" push -q -u origin main
 
