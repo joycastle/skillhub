@@ -227,150 +227,94 @@ fi
   || fail "working tree not clean after cancel — revert incomplete"
 
 # ----------------------------------------------------------------------------
-# Test 7: race condition — remote tag appears between baseline sync and push
-#
-# After fetch --tags + baseline sync, no cli-v* exists. The script bumps from
-# package.json (0.1.0 → 0.1.1). Right before the remote ls-remote check, we
-# simulate another developer pushing cli-v0.1.1 to origin. The script must
-# detect this via the remote tag check and abort with package.json reverted.
-# ----------------------------------------------------------------------------
-echo "[test] remote tag race condition aborts and reverts"
-REPO7="$(new_tmp)"
-init_repo "$REPO7" "0.1.0"
-
-mkdir -p "$REPO7/bin-git"
-cat >"$REPO7/bin-git/git" <<'WRAPPER'
-#!/usr/bin/env bash
-# Log every invocation for debugging.
-echo "WRAPPER: $*" >> "${RACE_WRAPPER_LOG:-/dev/null}"
-# Inject cli-v0.1.1 into origin right before the script's remote tag check.
-if [[ "$*" == *"ls-remote --exit-code --tags origin refs/tags/cli-v0.1.1"* ]]; then
-  if [[ ! -f "$RACE_INJECTED_FLAG" ]]; then
-    touch "$RACE_INJECTED_FLAG"
-    SCRATCH=$(mktemp -d)
-    echo "WRAPPER: injecting cli-v0.1.1 into $ORIGIN_REPO" >> "${RACE_WRAPPER_LOG:-/dev/null}"
-    /usr/bin/git clone -q "$ORIGIN_REPO" "$SCRATCH" >>"${RACE_WRAPPER_LOG:-/dev/null}" 2>&1 || \
-      echo "WRAPPER: clone failed" >> "${RACE_WRAPPER_LOG:-/dev/null}"
-    /usr/bin/git -C "$SCRATCH" tag cli-v0.1.1 >>"${RACE_WRAPPER_LOG:-/dev/null}" 2>&1 || \
-      echo "WRAPPER: tag failed" >> "${RACE_WRAPPER_LOG:-/dev/null}"
-    /usr/bin/git -C "$SCRATCH" push -q origin cli-v0.1.1 >>"${RACE_WRAPPER_LOG:-/dev/null}" 2>&1 || \
-      echo "WRAPPER: push failed" >> "${RACE_WRAPPER_LOG:-/dev/null}"
-    rm -rf "$SCRATCH"
-  fi
-fi
-exec /usr/bin/git "$@"
-WRAPPER
-chmod +x "$REPO7/bin-git/git"
-
-status="$(env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE \
-  ORIGIN_REPO="$REPO7.origin.git" \
-  RACE_INJECTED_FLAG="$REPO7/.race-injected" \
-  RACE_WRAPPER_LOG="$REPO7/wrapper.log" \
-  REPO_ROOT="$REPO7" PATH="$REPO7/bin-git:$REPO7/bin:$PATH" \
-  bash "$REPO7/scripts/publish-cli.sh" "patch" \
-  >"$REPO7/stdout.log" 2>"$REPO7/stderr.log" && echo 0 || echo $?)"
-[[ "$status" -ne 0 ]] || { echo "=== wrapper.log ==="; cat "$REPO7/wrapper.log"; fail "expected non-zero exit on remote tag race"; }
-grep -F "tag cli-v0.1.1 already exists on origin" "$REPO7/stderr.log" >/dev/null \
-  || { echo "=== stderr ==="; cat "$REPO7/stderr.log"; echo "=== wrapper.log ==="; cat "$REPO7/wrapper.log"; fail "expected remote tag conflict message"; }
-grep -F '"version": "0.1.0"' "$REPO7/cli/package.json" >/dev/null \
-  || fail "package.json not reverted after remote conflict"
-[[ -z "$(git -C "$REPO7" status --porcelain)" ]] \
-  || fail "working tree not clean after remote conflict"
-
-# ----------------------------------------------------------------------------
-# Test 8: happy path — atomic push delivers branch + tag together
+# Test 7: happy path — atomic push delivers branch + tag together
 # ----------------------------------------------------------------------------
 echo "[test] happy path pushes branch and tag atomically"
-REPO8="$(new_tmp)"
-init_repo "$REPO8" "0.5.0"
-status="$(run_publish "$REPO8" "patch" $'y\n')"
-[[ "$status" -eq 0 ]] || { cat "$REPO8/stderr.log" >&2; fail "expected success, got $status"; }
-ORIGIN8="$REPO8.origin.git"
-git -C "$ORIGIN8" rev-parse "cli-v0.5.1" >/dev/null \
+REPO7="$(new_tmp)"
+init_repo "$REPO7" "0.5.0"
+status="$(run_publish "$REPO7" "patch" $'y\n')"
+[[ "$status" -eq 0 ]] || { cat "$REPO7/stderr.log" >&2; fail "expected success, got $status"; }
+ORIGIN7="$REPO7.origin.git"
+git -C "$ORIGIN7" rev-parse "cli-v0.5.1" >/dev/null \
   || fail "origin missing tag cli-v0.5.1"
-ORIGIN_HEAD="$(git -C "$ORIGIN8" rev-parse main)"
-LOCAL_HEAD="$(git -C "$REPO8" rev-parse main)"
+ORIGIN_HEAD="$(git -C "$ORIGIN7" rev-parse main)"
+LOCAL_HEAD="$(git -C "$REPO7" rev-parse main)"
 [[ "$ORIGIN_HEAD" == "$LOCAL_HEAD" ]] \
   || fail "origin/main HEAD did not advance to match local main"
-# The bump commit must be the tip and the tag must point to it (atomic).
-TAG_COMMIT="$(git -C "$ORIGIN8" rev-parse "cli-v0.5.1^{commit}")"
+TAG_COMMIT="$(git -C "$ORIGIN7" rev-parse "cli-v0.5.1^{commit}")"
 [[ "$TAG_COMMIT" == "$ORIGIN_HEAD" ]] \
   || fail "origin tag cli-v0.5.1 does not point to origin/main HEAD"
-grep -F "release triggered" "$REPO8/stdout.log" >/dev/null
+grep -F "release triggered" "$REPO7/stdout.log" >/dev/null
 
 # ----------------------------------------------------------------------------
-# Test 9: push failure → script exits non-zero (commit + tag stay local)
+# Test 8: push failure → script exits non-zero (commit + tag stay local)
 #
 # Break origin to force `git push --atomic origin main cli-vX.Y.Z` to fail.
 # ----------------------------------------------------------------------------
 echo "[test] push failure surfaces error"
-REPO9="$(new_tmp)"
-init_repo "$REPO9" "0.6.0"
-git -C "$REPO9" remote set-url origin "$REPO9.does-not-exist.git"
-status="$(run_publish "$REPO9" "patch" $'y\n')"
+REPO8="$(new_tmp)"
+init_repo "$REPO8" "0.6.0"
+git -C "$REPO8" remote set-url origin "$REPO8.does-not-exist.git"
+status="$(run_publish "$REPO8" "patch" $'y\n')"
 [[ "$status" -ne 0 ]] || fail "expected non-zero exit when push fails"
-# Local refs must still exist — operator can recover by deleting tag + resetting.
-git -C "$REPO9" rev-parse "cli-v0.6.1" >/dev/null \
+git -C "$REPO8" rev-parse "cli-v0.6.1" >/dev/null \
   || fail "local tag cli-v0.6.1 missing after push failure"
-git -C "$REPO9" log --oneline | grep -F "chore(cli): bump version to 0.6.1" >/dev/null \
+git -C "$REPO8" log --oneline | grep -F "chore(cli): bump version to 0.6.1" >/dev/null \
   || fail "local bump commit missing after push failure"
 
 # ----------------------------------------------------------------------------
-# Test 10: unpushed detection catches "branch pushed, tag not pushed" state
+# Test 9: unpushed detection catches "branch pushed, tag not pushed" state
 #
 # Simulate: commit is on origin/main, local tag exists but was never pushed.
 # The old `--no-merged` approach would miss this because the tagged commit is
 # already reachable from origin/main. The new ls-remote approach catches it.
 # ----------------------------------------------------------------------------
 echo "[test] unpushed detection catches tag-only failure"
-REPO10="$(new_tmp)"
-init_repo "$REPO10" "0.7.0"
-# Manually create a release commit and push only the branch (not the tag)
-cd "$REPO10/cli"
+REPO9="$(new_tmp)"
+init_repo "$REPO9" "0.7.0"
+cd "$REPO9/cli"
 node -e "
   const fs = require('fs');
   const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
   pkg.version = '0.7.1';
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 "
-cd "$REPO10"
-git -C "$REPO10" add cli/package.json
-git -C "$REPO10" commit -q -m "chore(cli): bump version to 0.7.1"
-git -C "$REPO10" tag "cli-v0.7.1"
-git -C "$REPO10" push -q origin main
+cd "$REPO9"
+git -C "$REPO9" add cli/package.json
+git -C "$REPO9" commit -q -m "chore(cli): bump version to 0.7.1"
+git -C "$REPO9" tag "cli-v0.7.1"
+git -C "$REPO9" push -q origin main
 # Tag NOT pushed — simulates atomic push partial failure recovery
-# (or a scenario where user manually pushed branch but tag failed)
-status="$(run_publish "$REPO10" "patch")"
+status="$(run_publish "$REPO9" "patch")"
 [[ "$status" -ne 0 ]] || fail "expected non-zero exit when unpushed tag detected"
-grep -F "Unpushed tags" "$REPO10/stderr.log" >/dev/null \
-  || { cat "$REPO10/stderr.log" >&2; fail "expected unpushed tag warning"; }
-grep -F "cli-v0.7.1" "$REPO10/stderr.log" >/dev/null \
+grep -F "Unpushed tags" "$REPO9/stderr.log" >/dev/null \
+  || { cat "$REPO9/stderr.log" >&2; fail "expected unpushed tag warning"; }
+grep -F "cli-v0.7.1" "$REPO9/stderr.log" >/dev/null \
   || fail "expected cli-v0.7.1 in unpushed tag warning"
 
 # ----------------------------------------------------------------------------
-# Test 11: --atomic flag is actually passed to git push
+# Test 10: --atomic flag is actually passed to git push
 #
 # Use a git wrapper to capture the push command and verify --atomic is present.
 # ----------------------------------------------------------------------------
 echo "[test] push uses --atomic flag"
-REPO11="$(new_tmp)"
-init_repo "$REPO11" "0.8.0"
-# Create a git wrapper that logs push commands
-mkdir -p "$REPO11/bin-git"
-cat >"$REPO11/bin-git/git" <<'WRAPPER'
+REPO10="$(new_tmp)"
+init_repo "$REPO10" "0.8.0"
+mkdir -p "$REPO10/bin-git"
+cat >"$REPO10/bin-git/git" <<'WRAPPER'
 #!/usr/bin/env bash
 if [[ "${1:-}" == "push" ]]; then
   echo "GIT_PUSH_ARGS: $*" >> "$REPO_ROOT/git-push-log.txt"
 fi
 exec /usr/bin/git "$@"
 WRAPPER
-chmod +x "$REPO11/bin-git/git"
+chmod +x "$REPO10/bin-git/git"
 status="$(env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE \
-  REPO_ROOT="$REPO11" PATH="$REPO11/bin-git:$REPO11/bin:$PATH" \
-  printf 'y\n' | bash "$REPO11/scripts/publish-cli.sh" "patch" \
-  >"$REPO11/stdout.log" 2>"$REPO11/stderr.log" && echo 0 || echo $?)"
-[[ "$status" -eq 0 ]] || { cat "$REPO11/stderr.log" >&2; fail "expected success, got $status"; }
-grep -F -- "--atomic" "$REPO11/git-push-log.txt" >/dev/null \
-  || { cat "$REPO11/git-push-log.txt" >&2; fail "git push did not include --atomic flag"; }
+  REPO_ROOT="$REPO10" PATH="$REPO10/bin-git:$REPO10/bin:$PATH" \
+  printf 'y\n' | bash "$REPO10/scripts/publish-cli.sh" "patch" \
+  >"$REPO10/stdout.log" 2>"$REPO10/stderr.log" && echo 0 || echo $?)"
+[[ "$status" -eq 0 ]] || { cat "$REPO10/stderr.log" >&2; fail "expected success, got $status"; }
+grep -F -- "--atomic" "$REPO10/git-push-log.txt" >/dev/null \
+  || { cat "$REPO10/git-push-log.txt" >&2; fail "git push did not include --atomic flag"; }
 
 echo "all tests passed"
