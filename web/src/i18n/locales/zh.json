@@ -565,6 +565,7 @@
     "empty": "暂无用户数据",
     "colUsername": "用户名",
     "colUserId": "用户 ID",
+    "copyUserId": "复制 {{username}} 的用户 ID",
     "colEmail": "邮箱",
     "colStatus": "状态",
     "colRole": "角色",

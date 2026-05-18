@@ -565,6 +565,7 @@
     "empty": "No user data",
     "colUsername": "Username",
     "colUserId": "User ID",
+    "copyUserId": "Copy user ID for {{username}}",
     "colEmail": "Email",
     "colStatus": "Status",
     "colRole": "Role",

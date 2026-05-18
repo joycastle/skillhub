@@ -40,9 +40,9 @@ test.describe('Admin Users - UserId Column', () => {
     const firstRow = page.getByRole('row').nth(1)
     await expect(firstRow).toBeVisible()
 
-    // The userId cell is the 2nd column (index 1). It should contain a non-empty identifier.
-    const userIdCell = firstRow.getByRole('cell').nth(1)
-    const userIdText = (await userIdCell.textContent())?.trim() ?? ''
+    // Assert on the monospace span specifically, not the full cell (which includes button text).
+    const userIdSpan = firstRow.getByRole('cell').nth(1).locator('span.font-mono')
+    const userIdText = (await userIdSpan.textContent())?.trim() ?? ''
     expect(userIdText.length).toBeGreaterThan(0)
   })
 
@@ -50,10 +50,14 @@ test.describe('Admin Users - UserId Column', () => {
     const rowCount = await page.getByRole('row').count()
     test.skip(rowCount <= 1, 'No data rows available to assert copy buttons')
 
-    const copyButtons = page.getByRole('button', { name: /copy/i })
-    const buttonCount = await copyButtons.count()
-    // At least one copy button per row body should be present.
-    expect(buttonCount).toBeGreaterThanOrEqual(rowCount - 1)
+    // Scope to the userId cell (2nd column) in each data row to avoid false positives
+    // from other copy buttons that may appear elsewhere on the page.
+    const dataRows = page.getByRole('row').filter({ hasNot: page.getByRole('columnheader') })
+    const rows = await dataRows.count()
+    for (let i = 0; i < rows; i++) {
+      const userIdCell = dataRows.nth(i).getByRole('cell').nth(1)
+      await expect(userIdCell.getByRole('button', { name: /copy/i })).toBeVisible()
+    }
   })
 
   test('clicking copy button copies the row userId to clipboard', async ({ page }) => {
@@ -65,11 +69,11 @@ test.describe('Admin Users - UserId Column', () => {
     const expectedUserId = (await userIdSpan.textContent())?.trim() ?? ''
     expect(expectedUserId.length).toBeGreaterThan(0)
 
-    const copyButton = firstRow.getByRole('button', { name: /copy/i }).first()
+    const copyButton = firstRow.getByRole('cell').nth(1).getByRole('button').first()
     await copyButton.click()
 
-    // CopyButton flips its label to "Copied" once the clipboard write resolves; wait for that.
-    await expect(firstRow.getByRole('button', { name: /copied/i })).toBeVisible()
+    // Wait for the button text to flip to "Copied" as feedback.
+    await expect(copyButton).toHaveText(/copied/i)
 
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText())
     expect(clipboardText).toBe(expectedUserId)
@@ -79,10 +83,11 @@ test.describe('Admin Users - UserId Column', () => {
     const firstRow = page.getByRole('row').nth(1)
     await expect(firstRow).toBeVisible()
 
-    const copyButton = firstRow.getByRole('button', { name: /copy/i }).first()
+    const copyButton = firstRow.getByRole('cell').nth(1).getByRole('button').first()
     await copyButton.click()
 
-    await expect(firstRow.getByRole('button', { name: /copied/i })).toBeVisible()
+    // Wait for the button text to flip to "Copied" as feedback.
+    await expect(copyButton).toHaveText(/copied/i)
   })
 
   test('userId column persists after triggering a search', async ({ page }) => {
