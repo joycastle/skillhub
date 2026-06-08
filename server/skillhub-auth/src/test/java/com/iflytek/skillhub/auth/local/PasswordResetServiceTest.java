@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.atLeastOnce;
@@ -214,5 +215,32 @@ class PasswordResetServiceTest {
                 .isInstanceOf(AuthFlowException.class)
                 .extracting("status")
                 .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void adminTriggerPasswordReset_forSystemAccount_throwsBadRequest() {
+        UserAccount user = UserAccount.systemAccount(
+                "builtin-skill-publisher",
+                "Built-in Skill Publisher",
+                "builtin@example.com",
+                null
+        );
+        given(userAccountRepository.findById("builtin-skill-publisher")).willReturn(Optional.of(user));
+        lenient().when(credentialRepository.findByUserId("builtin-skill-publisher")).thenReturn(
+                Optional.of(new LocalCredential("builtin-skill-publisher", "builtin", "encoded"))
+        );
+        lenient().when(resetRequestRepository.findByUserIdAndConsumedAtIsNullAndExpiresAtAfterOrderByCreatedAtDesc(
+                anyString(), any(Instant.class))
+        ).thenReturn(List.of());
+        lenient().when(passwordEncoder.encode(anyString())).thenReturn("encoded-value");
+
+        assertThatThrownBy(() -> service.adminTriggerPasswordReset("builtin-skill-publisher", "admin_1"))
+                .isInstanceOf(AuthFlowException.class)
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        verify(credentialRepository, never()).findByUserId("builtin-skill-publisher");
+        verify(resetRequestRepository, never()).save(any(PasswordResetRequest.class));
+        verify(mailSender, never()).send(any(SimpleMailMessage.class));
     }
 }

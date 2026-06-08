@@ -178,6 +178,9 @@ public class PasswordResetService {
     }
 
     private boolean isEligibleForReset(UserAccount user) {
+        if (user.isSystemAccount()) {
+            return false;
+        }
         if (user.getStatus() != UserStatus.ACTIVE) {
             return false;
         }

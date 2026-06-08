@@ -80,6 +80,16 @@ class FlywayMigrationGuardrailTest {
         assertThat(migration).contains("api_token.user_id = user_account.id");
     }
 
+    @Test
+    void systemAccountMigration_mustNotPromoteUsersWithRolesOrNamespaceMemberships() throws IOException {
+        String migration = Files.readString(migrationPath("V43__user_account_system_account.sql"));
+
+        assertThat(migration).contains("FROM user_role_binding");
+        assertThat(migration).contains("user_role_binding.user_id = user_account.id");
+        assertThat(migration).contains("FROM namespace_member");
+        assertThat(migration).contains("namespace_member.user_id = user_account.id");
+    }
+
     private List<Path> migrationFiles() throws IOException {
         Path root = repoRoot()
                 .resolve("server")

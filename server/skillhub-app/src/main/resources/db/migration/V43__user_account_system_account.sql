@@ -21,4 +21,14 @@ WHERE id = 'builtin-skill-publisher'
       SELECT 1
       FROM api_token
       WHERE api_token.user_id = user_account.id
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM user_role_binding
+      WHERE user_role_binding.user_id = user_account.id
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM namespace_member
+      WHERE namespace_member.user_id = user_account.id
   );
