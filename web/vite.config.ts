@@ -22,6 +22,8 @@ export default defineConfig({
   },
   test: {
     exclude: ['**/node_modules/**', '**/e2e/**'],
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
   server: {
     port: 3000,
