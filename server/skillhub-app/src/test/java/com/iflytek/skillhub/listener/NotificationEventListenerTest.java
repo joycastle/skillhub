@@ -6,6 +6,7 @@ import com.iflytek.skillhub.domain.namespace.Namespace;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
 import com.iflytek.skillhub.domain.skill.Skill;
 import com.iflytek.skillhub.domain.skill.SkillRepository;
+import com.iflytek.skillhub.domain.skill.SkillVisibility;
 import com.iflytek.skillhub.domain.skill.SkillVersionRepository;
 import com.iflytek.skillhub.notification.domain.NotificationCategory;
 import com.iflytek.skillhub.notification.service.NotificationDispatcher;
@@ -43,6 +44,24 @@ class NotificationEventListenerTest {
         return skill;
     }
 
+    private Skill skill(Long id, String ownerId, String createdBy) {
+        Skill skill = new Skill(5L, "test-skill", ownerId, SkillVisibility.PUBLIC);
+        skill.setCreatedBy(createdBy);
+        skill.setDisplayName("Test Skill");
+        setId(skill, id);
+        return skill;
+    }
+
+    private void setId(Skill skill, Long id) {
+        try {
+            java.lang.reflect.Field field = Skill.class.getDeclaredField("id");
+            field.setAccessible(true);
+            field.set(skill, id);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private void mockNamespace() {
         Namespace namespace = mock(Namespace.class);
         when(namespace.getSlug()).thenReturn("demo");
@@ -51,8 +70,7 @@ class NotificationEventListenerTest {
 
     @Test
     void onSkillPublished_shouldDispatchToPublisher() throws Exception {
-        Skill skill = mockSkill(1L);
-        when(skill.getCreatedBy()).thenReturn("publisher-1");
+        Skill skill = skill(1L, "publisher-1", "publisher-1");
         when(skillRepository.findById(1L)).thenReturn(Optional.of(skill));
         mockNamespace();
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
@@ -64,9 +82,19 @@ class NotificationEventListenerTest {
     }
 
     @Test
-    void onSkillPublished_shouldSkipWhenPublisherIsNotSkillCreator() throws Exception {
-        Skill skill = mock(Skill.class);
-        when(skill.getCreatedBy()).thenReturn("submitter-1");
+    void onSkillPublished_shouldSkipWhenPublisherIsNotSkillOwner() throws Exception {
+        Skill skill = skill(1L, "submitter-1", "submitter-1");
+        when(skillRepository.findById(1L)).thenReturn(Optional.of(skill));
+
+        listener.onSkillPublished(new SkillPublishedEvent(1L, 10L, "reviewer-1"));
+
+        verifyNoInteractions(dispatcher);
+    }
+
+    @Test
+    void onSkillPublished_shouldSkipPromotedSkillCopyCreatedByReviewer() throws Exception {
+        Skill skill = skill(1L, "submitter-1", "reviewer-1");
+        skill.setSourceSkillId(99L);
         when(skillRepository.findById(1L)).thenReturn(Optional.of(skill));
 
         listener.onSkillPublished(new SkillPublishedEvent(1L, 10L, "reviewer-1"));

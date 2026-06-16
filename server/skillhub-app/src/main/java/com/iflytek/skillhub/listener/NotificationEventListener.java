@@ -19,6 +19,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Component
 public class NotificationEventListener {
@@ -53,7 +54,7 @@ public class NotificationEventListener {
     @TransactionalEventListener
     public void onSkillPublished(SkillPublishedEvent event) {
         skillRepository.findById(event.skillId()).ifPresent(skill -> {
-            if (!event.publisherId().equals(skill.getCreatedBy())) {
+            if (!Objects.equals(event.publisherId(), skill.getOwnerId())) {
                 return;
             }
             String title = "Skill published: " + skillDisplayName(skill);
