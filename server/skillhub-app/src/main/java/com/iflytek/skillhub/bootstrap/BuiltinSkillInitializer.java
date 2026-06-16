@@ -50,6 +50,7 @@ public class BuiltinSkillInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(BuiltinSkillInitializer.class);
     private static final Set<String> SYSTEM_PUBLISHER_ROLES = Set.of("SUPER_ADMIN");
+    private static final boolean CONFIRM_BUILTIN_PUBLISH_WARNINGS = true;
 
     private final BuiltinSkillProperties properties;
     private final BuiltinSkillManifestLoader manifestLoader;
@@ -243,7 +244,7 @@ public class BuiltinSkillInitializer {
                     SYSTEM_PUBLISHER_ID,
                     SkillVisibility.PUBLIC,
                     SYSTEM_PUBLISHER_ROLES,
-                    false
+                    CONFIRM_BUILTIN_PUBLISH_WARNINGS
             );
             log.info("Published built-in skill slug={} version={} to @{}",
                     item.slug(), item.version(), GLOBAL_NAMESPACE);

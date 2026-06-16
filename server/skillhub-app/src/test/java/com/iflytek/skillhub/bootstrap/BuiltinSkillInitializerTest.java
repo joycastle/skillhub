@@ -2,6 +2,7 @@ package com.iflytek.skillhub.bootstrap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -106,7 +107,7 @@ class BuiltinSkillInitializerTest {
         runInitializer();
 
         verify(manifestLoader, never()).load();
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -116,7 +117,7 @@ class BuiltinSkillInitializerTest {
         runInitializer();
 
         verify(manifestLoader, never()).load();
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -144,7 +145,7 @@ class BuiltinSkillInitializerTest {
 
         verify(namespaceMemberRepository, never()).save(any());
         verify(downloader, never()).download(any());
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -162,7 +163,7 @@ class BuiltinSkillInitializerTest {
         runInitializer();
 
         verify(downloader, never()).download(any());
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -180,7 +181,7 @@ class BuiltinSkillInitializerTest {
         runInitializer();
 
         verify(downloader, never()).download(any());
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -192,7 +193,7 @@ class BuiltinSkillInitializerTest {
         runInitializer();
 
         verify(downloader, never()).download(any());
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -206,7 +207,7 @@ class BuiltinSkillInitializerTest {
         runInitializer();
 
         verify(downloader).download(URI.create(ITEM.url()));
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -222,7 +223,7 @@ class BuiltinSkillInitializerTest {
         runInitializer();
 
         verify(downloader, never()).download(any());
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
         assertThat(output).doesNotContain("Failed to synchronize built-in skill slug=skillhub-hello");
     }
 
@@ -232,7 +233,7 @@ class BuiltinSkillInitializerTest {
 
         runInitializer();
 
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -241,7 +242,7 @@ class BuiltinSkillInitializerTest {
 
         runInitializer();
 
-        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), eq(false));
+        verify(skillPublishService, never()).publishFromEntries(any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
@@ -259,7 +260,7 @@ class BuiltinSkillInitializerTest {
                 eq(PUBLISHER),
                 eq(SkillVisibility.PUBLIC),
                 eq(Set.of("SUPER_ADMIN")),
-                eq(false)
+                eq(true)
         );
         assertThat(entriesCaptor.getValue()).isEqualTo(entries);
     }
@@ -297,7 +298,7 @@ class BuiltinSkillInitializerTest {
                 .thenReturn(List.of())
                 .thenReturn(List.of(builtinSkill));
         when(skillPublishService.publishFromEntries(
-                eq(GLOBAL), any(), eq(PUBLISHER), eq(SkillVisibility.PUBLIC), eq(Set.of("SUPER_ADMIN")), eq(false)))
+                eq(GLOBAL), any(), eq(PUBLISHER), eq(SkillVisibility.PUBLIC), eq(Set.of("SUPER_ADMIN")), eq(true)))
                 .thenThrow(new DomainBadRequestException("error.skill.version.exists", "1.0.0"));
         when(skillVersionRepository.findBySkillIdAndVersion(100L, "1.0.0")).thenReturn(Optional.of(published));
         when(skillFileRepository.findByVersionId(200L)).thenReturn(skillFilesFor(entries, 200L));
@@ -305,7 +306,7 @@ class BuiltinSkillInitializerTest {
         runInitializer();
 
         verify(skillPublishService).publishFromEntries(
-                eq(GLOBAL), any(), eq(PUBLISHER), eq(SkillVisibility.PUBLIC), eq(Set.of("SUPER_ADMIN")), eq(false));
+                eq(GLOBAL), any(), eq(PUBLISHER), eq(SkillVisibility.PUBLIC), eq(Set.of("SUPER_ADMIN")), eq(true));
     }
 
     @Test
@@ -318,7 +319,7 @@ class BuiltinSkillInitializerTest {
                 .thenReturn(List.of())
                 .thenReturn(List.of(builtinSkill));
         when(skillPublishService.publishFromEntries(
-                eq(GLOBAL), any(), eq(PUBLISHER), eq(SkillVisibility.PUBLIC), eq(Set.of("SUPER_ADMIN")), eq(false)))
+                eq(GLOBAL), any(), eq(PUBLISHER), eq(SkillVisibility.PUBLIC), eq(Set.of("SUPER_ADMIN")), eq(true)))
                 .thenThrow(new DomainBadRequestException("error.skill.version.exists", "1.0.0"));
         when(skillVersionRepository.findBySkillIdAndVersion(100L, "1.0.0")).thenReturn(Optional.of(published));
         when(skillFileRepository.findByVersionId(200L)).thenReturn(List.of(
@@ -329,7 +330,7 @@ class BuiltinSkillInitializerTest {
 
         verify(skillFileRepository).findByVersionId(200L);
         verify(skillPublishService).publishFromEntries(
-                eq(GLOBAL), any(), eq(PUBLISHER), eq(SkillVisibility.PUBLIC), eq(Set.of("SUPER_ADMIN")), eq(false));
+                eq(GLOBAL), any(), eq(PUBLISHER), eq(SkillVisibility.PUBLIC), eq(Set.of("SUPER_ADMIN")), eq(true));
         assertThat(output).contains("Failed to publish built-in skill slug=skillhub-hello version=1.0.0");
         assertThat(output).doesNotContain("was published concurrently, skipping");
     }

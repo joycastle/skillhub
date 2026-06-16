@@ -124,6 +124,46 @@ class SkillMetadataParserTest {
     }
 
     @Test
+    void testUsesMetadataVersionWhenTopLevelVersionIsMissing() {
+        String content = """
+            ---
+            name: agentguard
+            description: Agent security guard
+            metadata:
+              author: GoPlusSecurity
+              version: "1.1"
+            ---
+            Body
+            """;
+
+        SkillMetadata metadata = parser.parse(content);
+
+        assertEquals("agentguard", metadata.name());
+        assertEquals("Agent security guard", metadata.description());
+        assertEquals("1.1", metadata.version());
+    }
+
+    @Test
+    void testTopLevelVersionTakesPrecedenceOverMetadataVersion() {
+        String content = """
+            ---
+            name: versioned-skill
+            description: Prefer top-level version
+            version: 2.0.0
+            metadata:
+              version: "1.1"
+            ---
+            Body
+            """;
+
+        SkillMetadata metadata = parser.parse(content);
+
+        assertEquals("versioned-skill", metadata.name());
+        assertEquals("Prefer top-level version", metadata.description());
+        assertEquals("2.0.0", metadata.version());
+    }
+
+    @Test
     void testFallsBackToLooseFrontmatterParsingWhenYamlSyntaxIsNotStrict() {
         String content = """
             ---
