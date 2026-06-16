@@ -180,6 +180,42 @@ get_env_value() {
   fi
 }
 
+generate_secret() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex 32
+    return 0
+  fi
+
+  if [ -r /dev/urandom ] && command -v od >/dev/null 2>&1; then
+    dd if=/dev/urandom bs=32 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n'
+    return 0
+  fi
+
+  echo "Unable to generate SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET. Install openssl or configure it manually." >&2
+  exit 1
+}
+
+is_placeholder_secret() {
+  case "$1" in
+    ""|change-me-in-production|replace-me|replace-with-random-download-secret-32-bytes|TODO*|todo*|replace*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+ensure_anonymous_download_secret() {
+  secret="$(get_env_value "SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET" "")"
+  if ! is_placeholder_secret "$secret" && [ "${#secret}" -ge 32 ]; then
+    return 0
+  fi
+
+  set_env_value "SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET" "$(generate_secret)"
+  echo "Generated SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET in $ENV_FILE"
+}
+
 wait_for_postgres_ready() {
   postgres_user="$1"
   postgres_db="$2"
@@ -280,6 +316,8 @@ prepare_runtime_files() {
   if [ -n "$SKILLHUB_PUBLIC_BASE_URL_VALUE" ]; then
     set_env_value "SKILLHUB_PUBLIC_BASE_URL" "$SKILLHUB_PUBLIC_BASE_URL_VALUE"
   fi
+
+  ensure_anonymous_download_secret
 }
 
 run_compose() {

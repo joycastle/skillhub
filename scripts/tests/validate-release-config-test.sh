@@ -80,4 +80,17 @@ short_env="$tmp/short.env"
 write_env "$short_env" "too-short"
 expect_fail "$short_env" "SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET must be at least 32 characters"
 
+draft_env="$tmp/draft.env"
+while IFS= read -r line || [[ -n "$line" ]]; do
+  case "$line" in
+    SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET=*)
+      printf '%s\n' "SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET=release-download-secret-32-bytes-minimum"
+      ;;
+    *)
+      printf '%s\n' "$line"
+      ;;
+  esac
+done <"$REPO_ROOT/.env.release.draft" >"$draft_env"
+expect_fail "$draft_env" "POSTGRES_PASSWORD"
+
 echo "validate-release-config-test passed"

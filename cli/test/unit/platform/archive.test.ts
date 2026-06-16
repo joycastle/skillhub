@@ -32,6 +32,17 @@ describe('archive helpers', () => {
     await expect(extractZip(unsafe.buffer as ArrayBuffer, target)).rejects.toThrow('unsafe zip entry path')
   })
 
+  test('rejects unsafe zip before writing earlier safe entries', async () => {
+    const target = await mkdtemp(join(tmpdir(), 'skillhub-archive-partial-'))
+    const unsafe = zipSync({
+      'SKILL.md': new TextEncoder().encode('# Partial'),
+      '../escape.txt': new TextEncoder().encode('bad'),
+    })
+
+    await expect(extractZip(unsafe.buffer as ArrayBuffer, target)).rejects.toThrow('unsafe zip entry path')
+    await expect(readFile(join(target, 'SKILL.md'), 'utf-8')).rejects.toThrow()
+  })
+
   test('rejects zip entries with absolute paths', async () => {
     const target = await mkdtemp(join(tmpdir(), 'skillhub-archive-abs-'))
     const unsafe = zipSync({ '/etc/passwd': new TextEncoder().encode('bad') })

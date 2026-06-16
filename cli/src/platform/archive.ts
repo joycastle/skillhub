@@ -19,8 +19,12 @@ export async function extractZip(buffer: ArrayBuffer, targetDir: string): Promis
   const archive = new Uint8Array(buffer)
   validateZipCentralDirectory(archive)
   const files = unzipSync(archive)
-  for (const [name, data] of Object.entries(files)) {
-    const filePath = safeJoin(targetDir, name)
+  const entries = Object.entries(files).map(([name, data]) => ({
+    name,
+    data,
+    filePath: safeJoin(targetDir, name),
+  }))
+  for (const { name, data, filePath } of entries) {
     if (name.endsWith('/')) {
       await mkdir(filePath, { recursive: true })
       continue

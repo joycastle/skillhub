@@ -12,6 +12,13 @@ fail() {
 
 [[ -f "$SECURITY_WORKFLOW" ]] || fail ".github/workflows/security.yml is required"
 
+grep -Eq '^permissions:[[:space:]]*$' "$PR_SCRIPTS_WORKFLOW" \
+  || fail "pr-scripts must declare top-level permissions"
+grep -Eq '^[[:space:]]+contents:[[:space:]]+read[[:space:]]*$' "$PR_SCRIPTS_WORKFLOW" \
+  || fail "pr-scripts GITHUB_TOKEN permissions must be read-only"
+grep -Fq 'persist-credentials: false' "$PR_SCRIPTS_WORKFLOW" \
+  || fail "pr-scripts checkout must not persist credentials"
+
 grep -Fq 'actions/dependency-review-action' "$SECURITY_WORKFLOW" \
   || fail "security workflow must run dependency review"
 grep -Fq 'github/codeql-action/init' "$SECURITY_WORKFLOW" \
@@ -25,6 +32,8 @@ grep -Fq '.github/workflows/security.yml' "$PR_SCRIPTS_WORKFLOW" \
   || fail "pr-scripts must run when security workflow changes"
 grep -Fq 'bash scripts/tests/validate-release-config-test.sh' "$PR_SCRIPTS_WORKFLOW" \
   || fail "pr-scripts must run validate-release-config-test"
+grep -Fq 'bash scripts/tests/runtime-secret-test.sh' "$PR_SCRIPTS_WORKFLOW" \
+  || fail "pr-scripts must run runtime-secret-test"
 grep -Fq 'bash scripts/tests/dev-web-host-test.sh' "$PR_SCRIPTS_WORKFLOW" \
   || fail "pr-scripts must run dev-web-host-test"
 grep -Fq 'bash scripts/tests/workflow-security-test.sh' "$PR_SCRIPTS_WORKFLOW" \

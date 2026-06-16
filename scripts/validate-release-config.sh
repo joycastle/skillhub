@@ -52,6 +52,23 @@ reject_values() {
   done
 }
 
+reject_patterns() {
+  var_name="$1"
+  shift
+  eval "var_value=\${$var_name:-}"
+  if [ -z "$var_value" ]; then
+    return 0
+  fi
+  for pattern in "$@"; do
+    case "$var_value" in
+      $pattern)
+        error "$var_name still uses placeholder/default pattern: $var_value"
+        return 0
+        ;;
+    esac
+  done
+}
+
 validate_url() {
   var_name="$1"
   eval "var_value=\${$var_name:-}"
@@ -115,15 +132,22 @@ validate_no_trailing_slash SKILLHUB_PUBLIC_BASE_URL
 
 require_non_empty SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET
 reject_values SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET "change-me-in-production" "replace-me" "replace-with-random-download-secret-32-bytes"
+reject_patterns SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET "TODO_*" "todo_*" "replace*"
 validate_min_length SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET 32
 
 reject_values POSTGRES_PASSWORD "change-this-postgres-password" "skillhub_demo" "skillhub_dev"
+reject_patterns POSTGRES_PASSWORD "TODO_*" "todo_*"
 reject_values BOOTSTRAP_ADMIN_PASSWORD "replace-this-admin-password" "ChangeMe!2026" "Admin@2026"
+reject_patterns BOOTSTRAP_ADMIN_PASSWORD "TODO_*" "todo_*" "replace*"
 if [ "${BOOTSTRAP_ADMIN_ENABLED:-false}" = "true" ]; then
   require_non_empty BOOTSTRAP_ADMIN_PASSWORD
 fi
 reject_values SKILLHUB_STORAGE_S3_ACCESS_KEY "replace-me"
 reject_values SKILLHUB_STORAGE_S3_SECRET_KEY "replace-me"
+reject_patterns SKILLHUB_STORAGE_S3_ACCESS_KEY "TODO_*" "todo_*" "replace*"
+reject_patterns SKILLHUB_STORAGE_S3_SECRET_KEY "TODO_*" "todo_*" "replace*"
+reject_patterns SPRING_MAIL_USERNAME "TODO_*" "todo_*" "replace*"
+reject_patterns SPRING_MAIL_PASSWORD "TODO_*" "todo_*" "replace*"
 
 validate_boolean SESSION_COOKIE_SECURE
 validate_boolean BOOTSTRAP_ADMIN_ENABLED
