@@ -5,6 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
  * Enforces fine-grained API token scopes after token authentication has established the principal.
  */
 @Component
+@ConditionalOnProperty(name = "skillhub.auth.api-tokens.enabled", havingValue = "true", matchIfMissing = true)
 public class ApiTokenScopeFilter extends OncePerRequestFilter {
 
     private final ApiTokenScopeService apiTokenScopeService;

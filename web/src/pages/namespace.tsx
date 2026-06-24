@@ -1,31 +1,32 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { NamespaceHeader } from '@/features/namespace/namespace-header'
 import { SkillCard } from '@/features/skill/skill-card'
 import { SkeletonList } from '@/shared/components/skeleton-loader'
 import { EmptyState } from '@/shared/components/empty-state'
 import { Pagination } from '@/shared/components/pagination'
 import { useSearchSkills } from '@/shared/hooks/use-skill-queries'
-import { useNamespaceDetail } from '@/shared/hooks/use-namespace-queries'
+import { useSkillRepositories } from '@/shared/hooks/use-skill-repositories'
+import { resolveRepositoryDisplayName } from '@/shared/lib/repository-display'
 
 const PAGE_SIZE = 20
 
 /**
- * Public namespace page showing namespace metadata and the skills currently discoverable inside it.
+ * Public repository page showing skills in a department catalog.
  */
 export function NamespacePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { namespace } = useParams({ from: '/space/$namespace' })
   const [page, setPage] = useState(0)
+  const { data: repositories, isLoading: isLoadingRepositories } = useSkillRepositories()
+  const repositoryName = resolveRepositoryDisplayName(namespace, repositories)
+  const repositoryExists = repositories?.some((item) => item.slug === namespace) ?? false
 
-  // Reset page when namespace changes
   useEffect(() => {
     setPage(0)
   }, [namespace])
 
-  const { data: namespaceData, isLoading: isLoadingNamespace } = useNamespaceDetail(namespace)
   const { data: skillsData, isLoading: isLoadingSkills } = useSearchSkills({
     namespace,
     page,
@@ -38,7 +39,7 @@ export function NamespacePage() {
     navigate({ to: `/space/${namespace}/${encodeURIComponent(slug)}` })
   }
 
-  if (isLoadingNamespace) {
+  if (isLoadingRepositories) {
     return (
       <div className="space-y-6 animate-fade-up">
         <div className="h-12 w-48 animate-shimmer rounded-lg" />
@@ -47,39 +48,44 @@ export function NamespacePage() {
     )
   }
 
-  if (!namespaceData) {
-    return <EmptyState title={t('namespace.notFound')} />
+  if (!repositoryExists) {
+    return <EmptyState title={t('repository.notFound')} />
   }
 
   return (
     <div className="space-y-8 animate-fade-up">
-      <NamespaceHeader namespace={namespaceData} />
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold font-heading">{repositoryName}</h1>
+        <p className="text-muted-foreground">{t('repository.skillListSubtitle')}</p>
+      </div>
 
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold font-heading">{t('namespace.skillList')}</h2>
+        <h2 className="text-2xl font-bold font-heading">{t('repository.skillList')}</h2>
         {isLoadingSkills ? (
           <SkeletonList count={6} />
         ) : skillsData && skillsData.items.length > 0 ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {skillsData.items.map((skill, idx) => (
-                <div key={skill.id} className={`relative animate-fade-up delay-${Math.min(idx + 1, 6)}`}>
-                  <SkillCard
-                    skill={skill}
-                    onClick={() => handleSkillClick(skill.slug)}
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {skillsData.items.map((skill) => (
+                <SkillCard
+                  key={skill.id}
+                  skill={skill}
+                  onClick={() => handleSkillClick(skill.slug)}
+                />
               ))}
             </div>
-
-            {skillsData.total > PAGE_SIZE ? (
-              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-            ) : null}
+            {totalPages > 1 && (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
+            )}
           </>
         ) : (
           <EmptyState
-            title={t('namespace.emptyTitle')}
-            description={t('namespace.emptyDescription')}
+            title={t('repository.emptyTitle')}
+            description={t('repository.emptyDescription')}
           />
         )}
       </div>

@@ -5,7 +5,6 @@ import com.iflytek.skillhub.auth.repository.UserRoleBindingRepository;
 import com.iflytek.skillhub.domain.namespace.NamespaceMemberRepository;
 import com.iflytek.skillhub.domain.user.UserAccount;
 import com.iflytek.skillhub.domain.user.UserAccountRepository;
-import com.iflytek.skillhub.security.AuthFailureThrottleService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -20,12 +19,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Set;
 
-import static org.hamcrest.Matchers.hasItems;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,18 +30,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
-    "spring.security.oauth2.client.registration.github.client-name=GitHub",
-    "spring.security.oauth2.client.registration.gitee.client-id=placeholder",
-    "spring.security.oauth2.client.registration.gitee.client-secret=placeholder",
-    "spring.security.oauth2.client.registration.gitee.provider=gitee",
-    "spring.security.oauth2.client.registration.gitee.authorization-grant-type=authorization_code",
-    "spring.security.oauth2.client.registration.gitee.redirect-uri={baseUrl}/login/oauth2/code/{registrationId}",
-    "spring.security.oauth2.client.registration.gitee.scope=user_info",
-    "spring.security.oauth2.client.registration.gitee.client-name=Gitee",
-    "spring.security.oauth2.client.provider.gitee.authorization-uri=https://gitee.com/oauth/authorize",
-    "spring.security.oauth2.client.provider.gitee.token-uri=https://gitee.com/oauth/token",
-    "spring.security.oauth2.client.provider.gitee.user-info-uri=https://gitee.com/api/v5/user",
-    "spring.security.oauth2.client.provider.gitee.user-name-attribute=id"
+    "spring.security.oauth2.client.registration.feishu.client-id=cli_test",
+    "spring.security.oauth2.client.registration.feishu.client-secret=secret",
+    "spring.security.oauth2.client.registration.feishu.client-name=飞书",
+    "spring.security.oauth2.client.registration.feishu.authorization-grant-type=authorization_code",
+    "spring.security.oauth2.client.registration.feishu.redirect-uri={baseUrl}/login/oauth2/code/{registrationId}",
+    "spring.security.oauth2.client.registration.feishu.scope=contact:user.base:readonly",
+    "spring.security.oauth2.client.provider.feishu.authorization-uri=https://accounts.feishu.cn/open-apis/authen/v1/authorize",
+    "spring.security.oauth2.client.provider.feishu.token-uri=https://open.feishu.cn/open-apis/authen/v2/oauth/token",
+    "spring.security.oauth2.client.provider.feishu.user-info-uri=https://open.feishu.cn/open-apis/authen/v1/user_info",
+    "spring.security.oauth2.client.provider.feishu.user-name-attribute=open_id"
 })
 class AuthControllerTest {
 
@@ -54,9 +48,6 @@ class AuthControllerTest {
 
     @MockBean
     private NamespaceMemberRepository namespaceMemberRepository;
-
-    @MockBean
-    private AuthFailureThrottleService authFailureThrottleService;
 
     @MockBean
     private UserAccountRepository userAccountRepository;
@@ -83,7 +74,7 @@ class AuthControllerTest {
             "tester",
             "tester@example.com",
             "https://example.com/avatar.png",
-            "github",
+            "feishu",
             Set.of("SUPER_ADMIN")
         );
 
@@ -101,13 +92,11 @@ class AuthControllerTest {
             .andExpect(jsonPath("$.code").value(0))
             .andExpect(jsonPath("$.data.userId").value("user-42"))
             .andExpect(jsonPath("$.data.displayName").value("tester"))
-            .andExpect(jsonPath("$.data.oauthProvider").value("github"))
+            .andExpect(jsonPath("$.data.oauthProvider").value("feishu"))
             .andExpect(jsonPath("$.data.platformRoles[0]").value("USER"))
             .andExpect(jsonPath("$.timestamp").isNotEmpty())
             .andExpect(jsonPath("$.requestId").isNotEmpty());
     }
-
-    // ===== AC-P-002: Session refresh when displayName changes =====
 
     @Test
     void meShouldRefreshSessionWhenDisplayNameChanges() throws Exception {
@@ -118,10 +107,10 @@ class AuthControllerTest {
 
         PlatformPrincipal principal = new PlatformPrincipal(
             "user-42",
-            "OldName",  // stale displayName in session
+            "OldName",
             "tester@example.com",
             "https://example.com/avatar.png",
-            "github",
+            "feishu",
             Set.of("USER")
         );
 
@@ -134,23 +123,17 @@ class AuthControllerTest {
         mockMvc.perform(get("/api/v1/auth/me").with(authentication(auth)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(0))
-            .andExpect(jsonPath("$.data.displayName").value("UpdatedName"));  // should return DB value
+            .andExpect(jsonPath("$.data.displayName").value("UpdatedName"));
     }
 
     @Test
-    void providersShouldExposeGithubLoginEntry() throws Exception {
+    void providersShouldExposeFeishuLoginEntry() throws Exception {
         mockMvc.perform(get("/api/v1/auth/providers"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(0))
-            .andExpect(jsonPath("$.data.length()").value(3))
-            .andExpect(jsonPath("$.data[*].id", hasItems("github", "gitee", "gitlab")))
-            .andExpect(jsonPath("$.data[*].authorizationUrl", hasItems(
-                "/oauth2/authorization/github",
-                "/oauth2/authorization/gitee",
-                "/oauth2/authorization/gitlab"
-            )))
-            .andExpect(jsonPath("$.timestamp").isNotEmpty())
-            .andExpect(jsonPath("$.requestId").isNotEmpty());
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].id").value("feishu"))
+            .andExpect(jsonPath("$.data[0].authorizationUrl").value("/oauth2/authorization/feishu"));
     }
 
     @Test
@@ -158,44 +141,19 @@ class AuthControllerTest {
         mockMvc.perform(get("/api/v1/auth/providers").param("returnTo", "/dashboard/publish"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(0))
-            .andExpect(jsonPath("$.data[*].authorizationUrl", hasItems(
-                "/oauth2/authorization/github?returnTo=%2Fdashboard%2Fpublish",
-                "/oauth2/authorization/gitee?returnTo=%2Fdashboard%2Fpublish"
-            )));
+            .andExpect(jsonPath("$.data[0].authorizationUrl")
+                .value("/oauth2/authorization/feishu?returnTo=%2Fdashboard%2Fpublish"));
     }
 
     @Test
-    void methodsShouldExposeStandardLoginCatalog() throws Exception {
+    void methodsShouldExposeFeishuLoginCatalog() throws Exception {
         mockMvc.perform(get("/api/v1/auth/methods").param("returnTo", "/dashboard/publish"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(0))
-            .andExpect(jsonPath("$.data[*].id", hasItems("local-password", "oauth-github", "oauth-gitee")))
-            .andExpect(jsonPath("$.data[?(@.id=='local-password')].methodType").value(hasItems("PASSWORD")))
-            .andExpect(jsonPath("$.data[?(@.id=='oauth-github')].actionUrl")
-                .value(hasItems("/oauth2/authorization/github?returnTo=%2Fdashboard%2Fpublish")));
-    }
-
-    @Test
-    void sessionBootstrapShouldBeForbiddenWhenFeatureIsDisabled() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/session/bootstrap")
-                .with(csrf())
-                .contentType("application/json")
-                .content("""
-                    {"provider":"private-sso"}
-                    """))
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.code").value(403));
-    }
-
-    @Test
-    void directLoginShouldBeForbiddenWhenFeatureIsDisabled() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/direct/login")
-                .with(csrf())
-                .contentType("application/json")
-                .content("""
-                    {"provider":"private-sso","username":"alice","password":"secret"}
-                    """))
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.code").value(403));
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].id").value("oauth-feishu"))
+            .andExpect(jsonPath("$.data[0].methodType").value("OAUTH_REDIRECT"))
+            .andExpect(jsonPath("$.data[0].actionUrl")
+                .value("/oauth2/authorization/feishu?returnTo=%2Fdashboard%2Fpublish"));
     }
 }

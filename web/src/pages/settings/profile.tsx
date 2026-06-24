@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, profileApi } from '@/api/client'
 import { useAuth } from '@/features/auth/use-auth'
 import { truncateErrorMessage } from '@/shared/lib/error-display'
+import { isGovernanceEnabled } from '@/shared/config/features'
 import { toast } from '@/shared/lib/toast'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -249,7 +250,7 @@ export function ProfileSettingsPage() {
             {errors._form ? <p className="text-sm text-red-600">{errors._form}</p> : null}
 
             {/* Review hint */}
-            {hasReviewFields ? (
+            {isGovernanceEnabled() && hasReviewFields ? (
               <p className="text-sm text-muted-foreground">{t('profile.reviewHint')}</p>
             ) : null}
 
@@ -266,12 +267,12 @@ export function ProfileSettingsPage() {
           </form>
 
           {/* Review status banner */}
-          {pendingChanges?.status === 'PENDING' ? (
+          {isGovernanceEnabled() && pendingChanges?.status === 'PENDING' ? (
             <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-700 dark:text-yellow-400">
               {t('profile.pendingReview', { name: pendingChanges.changes?.displayName })}
             </div>
           ) : null}
-          {pendingChanges?.status === 'REJECTED' ? (
+          {isGovernanceEnabled() && pendingChanges?.status === 'REJECTED' ? (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
               <p>{t('profile.rejected')}</p>
               {pendingChanges.reviewComment ? (

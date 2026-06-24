@@ -1,6 +1,9 @@
 export type MySkillFilter = 'ALL' | 'PENDING_REVIEW' | 'PUBLISHED' | 'REJECTED' | 'ARCHIVED' | 'HIDDEN'
 
-export function getMySkillFilters(isSuperAdmin: boolean): MySkillFilter[] {
+export function getMySkillFilters(isSuperAdmin: boolean, governanceEnabled = true): MySkillFilter[] {
+  if (!governanceEnabled) {
+    return isSuperAdmin ? ['ALL', 'PUBLISHED', 'HIDDEN', 'ARCHIVED'] : ['ALL', 'PUBLISHED', 'ARCHIVED']
+  }
   if (isSuperAdmin) {
     return ['ALL', 'PUBLISHED', 'HIDDEN', 'ARCHIVED']
   }

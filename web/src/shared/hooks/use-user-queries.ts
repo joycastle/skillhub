@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import type { SkillSummary, PagedResponse } from '@/api/types'
-import { meApi, promotionApi, namespaceApi } from '@/api/client'
+import { meApi } from '@/api/client'
 
 async function getMySkills(params: { page?: number; size?: number; filter?: string; q?: string; namespace?: string } = {}): Promise<PagedResponse<SkillSummary>> {
   return meApi.getSkills(params)
@@ -20,15 +20,6 @@ async function getMySubscriptions(): Promise<SkillSummary[]> {
 
 async function getMySubscriptionsPage(params: { page?: number; size?: number } = {}): Promise<PagedResponse<SkillSummary>> {
   return meApi.getSubscriptionsPage(params)
-}
-
-async function submitPromotion(params: { sourceSkillId: number; sourceVersionId: number }): Promise<void> {
-  const globalNamespace = await namespaceApi.getDetail('global')
-  await promotionApi.submit({
-    sourceSkillId: params.sourceSkillId,
-    sourceVersionId: params.sourceVersionId,
-    targetNamespaceId: globalNamespace.id,
-  })
 }
 
 export function useMySkills(params: { page?: number; size?: number; filter?: string; q?: string; namespace?: string } = {}) {
@@ -68,18 +59,5 @@ export function useMySubscriptionsPage(params: { page?: number; size?: number } 
     queryKey: ['skills', 'subscriptions', 'page', params],
     queryFn: () => getMySubscriptionsPage(params),
     enabled,
-  })
-}
-
-export function useSubmitPromotion() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: submitPromotion,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['promotions'] })
-      queryClient.invalidateQueries({ queryKey: ['governance'] })
-      queryClient.invalidateQueries({ queryKey: ['skills'] })
-    },
   })
 }

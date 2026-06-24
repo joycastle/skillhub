@@ -63,16 +63,17 @@ vi.mock('@/shared/components/pagination', () => ({
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
   useArchiveSkill: () => ({ mutateAsync: vi.fn() }),
   useUnarchiveSkill: () => ({ mutateAsync: vi.fn() }),
-  useWithdrawSkillReview: () => ({ mutateAsync: vi.fn() }),
 }))
 
 vi.mock('@/shared/hooks/use-user-queries', () => ({
   useMySkills: () => useMySkillsMock(),
-  useSubmitPromotion: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
-vi.mock('@/shared/hooks/use-namespace-queries', () => ({
-  useMyNamespaces: () => ({ data: [] }),
+vi.mock('@/shared/hooks/use-skill-repositories', () => ({
+  useSkillRepositories: () => ({
+    data: [{ slug: 'global', displayName: 'JoyHub公共库', defaultRepository: true }],
+    isLoading: false,
+  }),
 }))
 
 vi.mock('@/shared/hooks/use-debounce', () => ({

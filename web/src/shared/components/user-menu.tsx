@@ -3,10 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { authApi } from '@/api/client'
-import { useMyNamespaces } from '@/shared/hooks/use-namespace-queries'
-import { buildGlobalReviewsPath, canAccessReviewCenter } from '@/features/review/review-paths'
 import { clearSessionScopedQueries } from '@/features/notification/notification-session'
-import { canViewGovernanceCenter } from '@/shared/lib/governance-access'
 import { cn } from '@/shared/lib/utils'
 
 interface User {
@@ -24,19 +21,15 @@ interface UserMenuProps {
 export function UserMenu({ user, triggerClassName }: UserMenuProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { data: myNamespaces } = useMyNamespaces()
   const rootRef = useRef<HTMLDivElement | null>(null)
   const closeTimerRef = useRef<number | null>(null)
   const [isHovered, setIsHovered] = useState(false)
   const [isClickOpen, setIsClickOpen] = useState(false)
 
   const hasRole = (role: string) => user.platformRoles?.includes(role) ?? false
-  const canSeeGovernance = canViewGovernanceCenter(user.platformRoles)
-  const isSkillAdmin = hasRole('SKILL_ADMIN') || hasRole('SUPER_ADMIN')
   const isUserAdmin = hasRole('USER_ADMIN') || hasRole('SUPER_ADMIN')
   const isAuditor = hasRole('AUDITOR') || hasRole('SUPER_ADMIN')
   const isSuperAdmin = hasRole('SUPER_ADMIN')
-  const reviewCenterVisible = canAccessReviewCenter(user.platformRoles, myNamespaces)
   const isLocalAccount = !user.oauthProvider
   const open = isHovered || isClickOpen
 
@@ -148,35 +141,12 @@ export function UserMenu({ user, triggerClassName }: UserMenuProps) {
             <Link to="/dashboard/skills" className={menuItemClassName} onClick={closeMenu}>
               {t('user.menu.mySkills')}
             </Link>
-            <Link to="/dashboard/namespaces" className={menuItemClassName} onClick={closeMenu}>
-              {t('user.menu.myNamespaces')}
-            </Link>
-            {canSeeGovernance ? (
-              <Link to="/dashboard/governance" className={menuItemClassName} onClick={closeMenu}>
-                {t('user.menu.governance')}
-              </Link>
-            ) : null}
             <Link to="/dashboard/stars" className={menuItemClassName} onClick={closeMenu}>
               {t('user.menu.stars')}
             </Link>
             <Link to="/dashboard/subscriptions" className={menuItemClassName} onClick={closeMenu}>
               {t('user.menu.subscriptions')}
             </Link>
-            {reviewCenterVisible ? (
-              <Link to={buildGlobalReviewsPath()} className={menuItemClassName} onClick={closeMenu}>
-                {t('user.menu.reviews')}
-              </Link>
-            ) : null}
-            {isSkillAdmin ? (
-              <Link to="/dashboard/promotions" className={menuItemClassName} onClick={closeMenu}>
-                {t('user.menu.promotions')}
-              </Link>
-            ) : null}
-            {isSkillAdmin ? (
-              <Link to="/dashboard/reports" className={menuItemClassName} onClick={closeMenu}>
-                {t('user.menu.reports')}
-              </Link>
-            ) : null}
             {isUserAdmin || isAuditor || isSuperAdmin ? <div className="-mx-1 my-1 h-px bg-muted" /> : null}
             {isUserAdmin ? (
               <Link to="/admin/users" className={menuItemClassName} onClick={closeMenu}>

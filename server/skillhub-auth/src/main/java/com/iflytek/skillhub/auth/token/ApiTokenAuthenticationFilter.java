@@ -11,6 +11,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
  * principal with both roles and token scopes.
  */
 @Component
+@ConditionalOnProperty(name = "skillhub.auth.api-tokens.enabled", havingValue = "true", matchIfMissing = true)
 public class ApiTokenAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String AUTH_HEADER = "Authorization";

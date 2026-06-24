@@ -220,6 +220,48 @@ class SkillPublishControllerTest {
             .andExpect(jsonPath("$.code").value(0));
     }
 
+    @Test
+    void publishBatch_processesEachFileIndependently() throws Exception {
+        SkillVersion version = new SkillVersion(12L, "1.0.0", "usr_1");
+        version.setStatus(SkillVersionStatus.PUBLISHED);
+        version.setFileCount(1);
+        version.setTotalSize(128L);
+        ReflectionTestUtils.setField(version, "id", 34L);
+
+        given(skillPublishService.publishFromEntries(
+            eq("global"),
+            ArgumentMatchers.<List<PackageEntry>>any(),
+            eq("usr_1"),
+            eq(SkillVisibility.PUBLIC),
+            eq(Set.of("SUPER_ADMIN")),
+            eq(false)))
+            .willReturn(new SkillPublishService.PublishResult(12L, "demo-skill", version));
+
+        PlatformPrincipal principal = new PlatformPrincipal(
+            "usr_1", "publisher", "publisher@example.com", "", "local", Set.of("SUPER_ADMIN"));
+        var auth = new UsernamePasswordAuthenticationToken(
+            principal, null, List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+
+        MockMultipartFile fileOne = new MockMultipartFile(
+            "files", "one.zip", "application/zip", buildZipBytes());
+        MockMultipartFile fileTwo = new MockMultipartFile(
+            "files", "two.zip", "application/zip", buildZipBytes());
+
+        mockMvc.perform(multipart("/api/v1/skills/global/publish-batch")
+                .file(fileOne)
+                .file(fileTwo)
+                .param("visibility", "PUBLIC")
+                .with(authentication(auth))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(0))
+            .andExpect(jsonPath("$.data.total").value(2))
+            .andExpect(jsonPath("$.data.succeeded").value(2))
+            .andExpect(jsonPath("$.data.failed").value(0))
+            .andExpect(jsonPath("$.data.items[0].filename").value("one.zip"))
+            .andExpect(jsonPath("$.data.items[1].filename").value("two.zip"));
+    }
+
     private byte[] buildZipBytes() throws Exception {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream();
              ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {

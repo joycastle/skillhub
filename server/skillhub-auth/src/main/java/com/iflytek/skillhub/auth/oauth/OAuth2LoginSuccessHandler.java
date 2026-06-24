@@ -2,6 +2,7 @@ package com.iflytek.skillhub.auth.oauth;
 
 import java.io.IOException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -27,12 +28,18 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
     private final PlatformSessionService platformSessionService;
     private final OAuthLoginFlowService oauthLoginFlowService;
+    private final String webBaseUrl;
 
     public OAuth2LoginSuccessHandler(PlatformSessionService platformSessionService,
-                                     OAuthLoginFlowService oauthLoginFlowService) {
+                                     OAuthLoginFlowService oauthLoginFlowService,
+                                     @Value("${skillhub.auth.web-base-url:}") String webBaseUrl) {
         this.platformSessionService = platformSessionService;
         this.oauthLoginFlowService = oauthLoginFlowService;
-        setDefaultTargetUrl(OAuthLoginRedirectSupport.DEFAULT_TARGET_URL);
+        this.webBaseUrl = webBaseUrl;
+        setDefaultTargetUrl(OAuthLoginRedirectSupport.toWebRedirect(
+                OAuthLoginRedirectSupport.DEFAULT_TARGET_URL,
+                webBaseUrl
+        ));
     }
 
     @Override
@@ -46,7 +53,11 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         }
         String returnTo = oauthLoginFlowService.consumeReturnTo(request.getSession(false));
         if (returnTo != null) {
-            getRedirectStrategy().sendRedirect(request, response, returnTo);
+            getRedirectStrategy().sendRedirect(
+                    request,
+                    response,
+                    OAuthLoginRedirectSupport.toWebRedirect(returnTo, webBaseUrl)
+            );
             // The default branch below clears these via super; clear here too so both paths behave consistently.
             clearAuthenticationAttributes(request);
             return;

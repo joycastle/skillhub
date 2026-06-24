@@ -1,6 +1,7 @@
 package com.iflytek.skillhub.compat;
 
 import com.iflytek.skillhub.auth.token.ApiTokenAuthenticationFilter;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -41,7 +42,7 @@ public class ClawHubRegistrySecurityConfig {
     @Order(1)
     public SecurityFilterChain clawHubRegistryFilterChain(
             HttpSecurity http,
-            ApiTokenAuthenticationFilter apiTokenAuthenticationFilter) throws Exception {
+            ObjectProvider<ApiTokenAuthenticationFilter> apiTokenAuthenticationFilterProvider) throws Exception {
         http
                 .securityMatcher(
                         "/api/v1/search",
@@ -50,8 +51,13 @@ public class ClawHubRegistrySecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .requestCache(cache -> cache.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(apiTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        ApiTokenAuthenticationFilter apiTokenAuthenticationFilter =
+                apiTokenAuthenticationFilterProvider.getIfAvailable();
+        if (apiTokenAuthenticationFilter != null) {
+            http.addFilterBefore(apiTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        }
 
         return http.build();
     }

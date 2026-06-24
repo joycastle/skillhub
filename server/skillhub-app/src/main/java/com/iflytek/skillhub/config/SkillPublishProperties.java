@@ -15,6 +15,7 @@ public class SkillPublishProperties {
     private long maxSingleFileSize = 10 * 1024 * 1024;  // 10MB
     private long maxPackageSize = 100 * 1024 * 1024;
     private Set<String> allowedFileExtensions = new LinkedHashSet<>(SkillPackagePolicy.ALLOWED_EXTENSIONS);
+    private boolean autoPublish = false;
 
     public int getMaxFileCount() {
         return maxFileCount;
@@ -46,5 +47,13 @@ public class SkillPublishProperties {
 
     public void setAllowedFileExtensions(Set<String> allowedFileExtensions) {
         this.allowedFileExtensions = new LinkedHashSet<>(allowedFileExtensions);
+    }
+
+    public boolean isAutoPublish() {
+        return autoPublish;
+    }
+
+    public void setAutoPublish(boolean autoPublish) {
+        this.autoPublish = autoPublish;
     }
 }

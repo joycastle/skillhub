@@ -66,7 +66,7 @@ class BuiltinSkillPackageExtractorTest {
     }
 
     @Test
-    void rejectsZipWhenSkillDirectoryPromotionWouldIgnoreOutsideFiles() throws Exception {
+    void keepsLicenseWhenSkillIsInSubdirectory() throws Exception {
         byte[] zip = zip(entry("skillhub-hello/SKILL.md", """
                 ---
                 name: skillhub-hello
@@ -75,9 +75,11 @@ class BuiltinSkillPackageExtractorTest {
                 # SkillHub Hello
                 """), entry("LICENSE", "Apache-2.0"));
 
-        assertThatThrownBy(() -> extractor.extract(zip))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Ignored file outside skill directory: LICENSE");
+        SkillPackageArchiveExtractor.ExtractionResult result = extractor.extract(zip);
+
+        assertThat(result.entries())
+                .extracting(entry -> entry.path())
+                .containsExactlyInAnyOrder("skillhub-hello/SKILL.md", "LICENSE");
     }
 
     private static ZipSource entry(String path, String content) {

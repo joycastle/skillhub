@@ -1,7 +1,4 @@
-import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const buttonRecords: Array<{ label: string }> = []
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
@@ -18,20 +15,8 @@ vi.mock('react-i18next', async () => {
   }
 })
 
-vi.mock('@/features/namespace/namespace-header', () => ({
-  NamespaceHeader: () => null,
-}))
-
 vi.mock('@/features/skill/skill-card', () => ({
   SkillCard: () => null,
-}))
-
-vi.mock('@/shared/ui/button', () => ({
-  Button: ({ children }: { children?: ReactNode }) => {
-    const label = Array.isArray(children) ? children.join('') : String(children ?? '')
-    buttonRecords.push({ label })
-    return <button>{children}</button>
-  },
 }))
 
 vi.mock('@/shared/components/skeleton-loader', () => ({
@@ -42,9 +27,13 @@ vi.mock('@/shared/components/empty-state', () => ({
   EmptyState: ({ title }: { title: string }) => <div>{title}</div>,
 }))
 
-const useNamespaceDetailMock = vi.fn()
-vi.mock('@/shared/hooks/use-namespace-queries', () => ({
-  useNamespaceDetail: () => useNamespaceDetailMock(),
+vi.mock('@/shared/components/pagination', () => ({
+  Pagination: () => null,
+}))
+
+const useSkillRepositoriesMock = vi.fn()
+vi.mock('@/shared/hooks/use-skill-repositories', () => ({
+  useSkillRepositories: () => useSkillRepositoriesMock(),
 }))
 
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
@@ -78,9 +67,8 @@ import { NamespacePage } from './namespace'
 
 describe('NamespacePage', () => {
   beforeEach(() => {
-    buttonRecords.length = 0
-    useNamespaceDetailMock.mockReturnValue({
-      data: { id: 1, slug: 'global', displayName: 'Global', type: 'GLOBAL', status: 'ACTIVE' },
+    useSkillRepositoriesMock.mockReturnValue({
+      data: [{ slug: 'global', displayName: 'JoyHub公共库', defaultRepository: true }],
       isLoading: false,
     })
   })
@@ -89,20 +77,18 @@ describe('NamespacePage', () => {
     expect(typeof NamespacePage).toBe('function')
   })
 
-  it('renders the not-found state when namespace data is missing', () => {
-    useNamespaceDetailMock.mockReturnValue({
-      data: null,
+  it('renders the not-found state when repository is missing from catalog', () => {
+    useSkillRepositoriesMock.mockReturnValue({
+      data: [{ slug: 'lab', displayName: 'Lab', defaultRepository: false }],
       isLoading: false,
     })
 
     const html = renderToStaticMarkup(<NamespacePage />)
-    expect(html).toContain('namespace.notFound')
+    expect(html).toContain('repository.notFound')
   })
 
-  it('does not render namespace distribution controls when skills are available', () => {
+  it('renders repository skills when catalog contains the slug', () => {
     const html = renderToStaticMarkup(<NamespacePage />)
-
-    expect(buttonRecords).toHaveLength(0)
-    expect(html).not.toContain('type="checkbox"')
+    expect(html).toContain('repository.skillList')
   })
 })

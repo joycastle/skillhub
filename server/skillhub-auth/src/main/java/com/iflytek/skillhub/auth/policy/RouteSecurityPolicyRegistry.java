@@ -23,9 +23,6 @@ public class RouteSecurityPolicyRegistry {
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/providers"),
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/methods"),
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/me"),
-            RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/session/bootstrap"),
-            RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/direct/login"),
-            RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/local/**"),
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/device/**"),
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/check"),
             RouteAuthorizationPolicy.permitAll(null, "/actuator/health"),
@@ -75,6 +72,8 @@ public class RouteSecurityPolicyRegistry {
             RouteAuthorizationPolicy.authenticated(HttpMethod.GET, "/api/v1/namespaces/*"),
             RouteAuthorizationPolicy.authenticated(HttpMethod.GET, "/api/web/namespaces"),
             RouteAuthorizationPolicy.authenticated(HttpMethod.GET, "/api/web/namespaces/*"),
+            RouteAuthorizationPolicy.authenticated(HttpMethod.GET, "/api/web/repositories"),
+            RouteAuthorizationPolicy.authenticated(HttpMethod.GET, "/api/v1/repositories"),
             RouteAuthorizationPolicy.authenticated(null, "/api/v1/admin/**"),
             RouteAuthorizationPolicy.authenticated(HttpMethod.GET, "/api/cli/v1/auth/whoami"),
             RouteAuthorizationPolicy.permitAll(HttpMethod.GET, "/api/cli/v1/skills/search"),
@@ -83,7 +82,8 @@ public class RouteSecurityPolicyRegistry {
             RouteAuthorizationPolicy.permitAll(HttpMethod.GET, "/api/cli/v1/skills/*/*/versions/*/download"),
             RouteAuthorizationPolicy.authenticated(HttpMethod.DELETE, "/api/cli/v1/skills/*/*"),
             RouteAuthorizationPolicy.authenticated(HttpMethod.POST, "/api/cli/v1/skills/*/publish"),
-            RouteAuthorizationPolicy.authenticated(HttpMethod.POST, "/api/cli/v1/skills/*/publish/validate")
+            RouteAuthorizationPolicy.authenticated(HttpMethod.POST, "/api/cli/v1/skills/*/publish/validate"),
+            RouteAuthorizationPolicy.authenticated(null, "/api/agent/v1/**")
     );
 
     private static final List<ApiTokenPolicy> API_TOKEN_POLICIES = List.of(
@@ -123,7 +123,8 @@ public class RouteSecurityPolicyRegistry {
             ApiTokenPolicy.allow(HttpMethod.GET, "/api/cli/v1/skills/*/*/versions/*/download"),
             ApiTokenPolicy.require(HttpMethod.DELETE, "/api/cli/v1/skills/*/*", "skill:delete"),
             ApiTokenPolicy.require(HttpMethod.POST, "/api/cli/v1/skills/*/publish", "skill:publish"),
-            ApiTokenPolicy.require(HttpMethod.POST, "/api/cli/v1/skills/*/publish/validate", "skill:publish")
+            ApiTokenPolicy.require(HttpMethod.POST, "/api/cli/v1/skills/*/publish/validate", "skill:publish"),
+            ApiTokenPolicy.require(null, "/api/agent/v1/**", "agent:skillhub")
     );
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();

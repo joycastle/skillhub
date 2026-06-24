@@ -13,6 +13,7 @@ import com.iflytek.skillhub.dto.PageResponse;
 import com.iflytek.skillhub.dto.SkillReportMutationResponse;
 import com.iflytek.skillhub.service.AdminSkillReportAppService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/admin/skill-reports")
+@ConditionalOnProperty(name = "skillhub.governance.enabled", havingValue = "true", matchIfMissing = true)
 public class AdminSkillReportController extends BaseApiController {
 
     private final AdminSkillReportAppService adminSkillReportAppService;

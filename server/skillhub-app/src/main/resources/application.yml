@@ -50,32 +50,20 @@ spring:
     oauth2:
       client:
         registration:
-          github:
-            client-id: ${OAUTH2_GITHUB_CLIENT_ID:placeholder}
-            client-secret: ${OAUTH2_GITHUB_CLIENT_SECRET:placeholder}
+          feishu:
+            client-id: ${OAUTH2_FEISHU_CLIENT_ID:placeholder}
+            client-secret: ${OAUTH2_FEISHU_CLIENT_SECRET:placeholder}
             scope:
-              - read:user
-              - user:email
+              - ${OAUTH2_FEISHU_SCOPE:contact:user.base:readonly}
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-            client-name: GitHub
+            client-name: 飞书
             authorization-grant-type: authorization_code
-          gitlab:
-            client-id: ${OAUTH2_GITLAB_CLIENT_ID:placeholder}
-            client-secret: ${OAUTH2_GITLAB_CLIENT_SECRET:placeholder}
-            scope:
-              - read_user
-              - email
-            authorization-grant-type: authorization_code
-            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-            client-name: ${OAUTH2_GITLAB_DISPLAY_NAME:GitLab}
         provider:
-          github:
-            user-info-uri: https://api.github.com/user
-          gitlab:
-            authorization-uri: ${OAUTH2_GITLAB_BASE_URI:https://gitlab.com}/oauth/authorize
-            token-uri: ${OAUTH2_GITLAB_BASE_URI:https://gitlab.com}/oauth/token
-            user-info-uri: ${OAUTH2_GITLAB_BASE_URI:https://gitlab.com}/api/v4/user
-            user-name-attribute: username
+          feishu:
+            authorization-uri: ${OAUTH2_FEISHU_AUTHORIZATION_URI:https://accounts.feishu.cn/open-apis/authen/v1/authorize}
+            token-uri: https://open.feishu.cn/open-apis/authen/v2/oauth/token
+            user-info-uri: ${OAUTH2_FEISHU_USER_INFO_URI:https://open.feishu.cn/open-apis/authen/v1/user_info}
+            user-name-attribute: data
   servlet:
     multipart:
       max-file-size: 100MB
@@ -93,15 +81,22 @@ spring:
             enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:false}
 
 skillhub:
+  agent:
+    jwt:
+      secret: ${HERMES_SKILLHUB_JWT_SECRET:}
+      issuer: ${HERMES_SKILLHUB_JWT_ISSUER:hermes-agent}
   builtin-skills:
     enabled: ${SKILLHUB_BUILTIN_SKILLS_ENABLED:true}
   auth:
+    api-tokens:
+      enabled: ${SKILLHUB_API_TOKENS_ENABLED:true}
     mock:
       enabled: ${SKILLHUB_AUTH_MOCK_ENABLED:false}
+    web-base-url: ${SKILLHUB_WEB_BASE_URL:}
     direct:
-      enabled: ${SKILLHUB_AUTH_DIRECT_ENABLED:false}
+      enabled: false
     session-bootstrap:
-      enabled: ${SKILLHUB_AUTH_SESSION_BOOTSTRAP_ENABLED:false}
+      enabled: false
     password-reset:
       code-expiry: ${SKILLHUB_AUTH_PASSWORD_RESET_CODE_EXPIRY:PT10M}
       email-from-address: ${SKILLHUB_AUTH_PASSWORD_RESET_FROM_ADDRESS:noreply@skillhub.local}
@@ -149,8 +144,31 @@ skillhub:
     max-file-count: 100
     max-single-file-size: 10485760 # 10MB
     max-package-size: 104857600 # 100MB
+    auto-publish: ${SKILLHUB_PUBLISH_AUTO_PUBLISH:false}
     # allowed-file-extensions: uses SkillPackagePolicy.ALLOWED_EXTENSIONS by default
     # Override via SKILLHUB_PUBLISH_ALLOWED_FILE_EXTENSIONS env var if needed
+  governance:
+    enabled: ${SKILLHUB_GOVERNANCE_ENABLED:true}
+  repositories:
+    default-slug: global
+    open-publish: ${SKILLHUB_REPOSITORIES_OPEN_PUBLISH:true}
+    open-publish-slugs: ${SKILLHUB_REPOSITORIES_OPEN_PUBLISH_SLUGS:global,hr-yuanqi,gestalt,maiqu,lab,jc-arsenal,horizon}
+    catalog:
+      - slug: global
+        display-name: JoyHub公共库
+        default-repository: true
+      - slug: hr-yuanqi
+        display-name: HR元气中心
+      - slug: gestalt
+        display-name: 格式塔工作室
+      - slug: maiqu
+        display-name: 麦趣工作室
+      - slug: lab
+        display-name: Lab
+      - slug: jc-arsenal
+        display-name: JC弹药库
+      - slug: horizon
+        display-name: 地平线工作室
   profile:
     moderation:
       machine-review: ${SKILLHUB_PROFILE_MACHINE_REVIEW_ENABLED:true} # Enable machine review (e.g. sensitive word detection)

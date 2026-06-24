@@ -12,13 +12,23 @@ describe('normalizePublishPrefill', () => {
     })
   })
 
-  it('falls back to PUBLIC when visibility is missing or invalid', () => {
+  it('falls back to WAREHOUSE when visibility is missing or invalid', () => {
     expect(normalizePublishPrefill({
       namespace: 'team-ai',
       visibility: 'internal',
     })).toEqual({
       namespace: 'team-ai',
+      visibility: 'WAREHOUSE',
+    })
+  })
+
+  it('maps legacy PUBLIC visibility to WAREHOUSE', () => {
+    expect(normalizePublishPrefill({
+      namespace: 'global',
       visibility: 'PUBLIC',
+    })).toEqual({
+      namespace: 'global',
+      visibility: 'WAREHOUSE',
     })
   })
 
@@ -27,7 +37,7 @@ describe('normalizePublishPrefill', () => {
       namespace: '  team-ml  ',
     })).toEqual({
       namespace: 'team-ml',
-      visibility: 'PUBLIC',
+      visibility: 'WAREHOUSE',
     })
   })
 })

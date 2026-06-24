@@ -15,6 +15,7 @@ import com.iflytek.skillhub.dto.PageResponse;
 import com.iflytek.skillhub.service.GovernanceWorkbenchAppService;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping({"/api/v1/governance", "/api/web/governance"})
+@ConditionalOnProperty(name = "skillhub.governance.enabled", havingValue = "true", matchIfMissing = true)
 public class GovernanceController extends BaseApiController {
 
     private final GovernanceWorkbenchAppService governanceWorkbenchAppService;

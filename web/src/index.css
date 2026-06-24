@@ -4,76 +4,72 @@
 
 @layer base {
   :root {
-    /* SkillHub — 浅色主题 (indigo-violet brand) */
-    --background: 210 20% 98%;
-    --foreground: 220 26% 14%;
+    /* Joycastle — light blue & white theme */
+    --background: 210 40% 99%;
+    --foreground: 215 35% 18%;
     --card: 0 0% 100%;
-    --card-foreground: 220 26% 14%;
+    --card-foreground: 215 35% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 26% 14%;
-    /* Indigo primary (#6A6DFF) */
-    --primary: 239 100% 71%;
+    --popover-foreground: 215 35% 18%;
+    /* Joycastle blue (#2E8AE6) */
+    --primary: 207 78% 54%;
     --primary-foreground: 0 0% 100%;
-    /* Surface tones */
-    --secondary: 210 30% 96%;
-    --secondary-foreground: 220 26% 14%;
-    --muted: 210 25% 95%;
-    --muted-foreground: 215 14% 46%;
-    /* Violet accent (#B85EFF) */
-    --accent: 271 100% 68%;
+    --secondary: 210 60% 97%;
+    --secondary-foreground: 215 35% 18%;
+    --muted: 210 45% 96%;
+    --muted-foreground: 215 16% 46%;
+    /* Lighter blue accent (#5CADF5) */
+    --accent: 207 86% 66%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 239 100% 71%;
+    --border: 210 35% 90%;
+    --input: 210 35% 90%;
+    --ring: 207 78% 54%;
     --radius: 0.75rem;
 
-    /* Extended palette */
-    --surface-glass: 210 30% 97%;
-    --glow-primary: 239 100% 71%;
-    --glow-accent: 271 100% 68%;
+    --surface-glass: 210 60% 98%;
+    --glow-primary: 207 78% 54%;
+    --glow-accent: 207 86% 66%;
     --success: 160 60% 45%;
     --warning: 38 92% 58%;
 
-    /* Brand */
-    --brand-start: #6A6DFF;
-    --brand-end: #B85EFF;
-    --brand-gradient: linear-gradient(135deg, #6A6DFF 0%, #B85EFF 100%);
+    --brand-start: #2E8AE6;
+    --brand-end: #5CADF5;
+    --brand-gradient: linear-gradient(135deg, #2E8AE6 0%, #5CADF5 100%);
+    --bg-page: #F8FBFF;
 
-    /* Text semantic */
-    --text-secondary: 215 19% 35%;
-    --text-muted: 215 14% 46%;
+    --text-secondary: 215 20% 38%;
+    --text-muted: 215 16% 46%;
     --text-placeholder: 213 12% 63%;
 
-    /* Border semantic */
-    --border-card: 220 26% 94%;
+    --border-card: 210 40% 93%;
   }
 
   .dark {
-    /* Dark theme (preserved, not default) */
-    --background: 222 47% 6%;
+    --background: 215 40% 8%;
     --foreground: 210 40% 96%;
-    --card: 222 40% 9%;
+    --card: 215 35% 11%;
     --card-foreground: 210 40% 96%;
-    --popover: 222 40% 9%;
+    --popover: 215 35% 11%;
     --popover-foreground: 210 40% 96%;
-    --primary: 239 100% 75%;
-    --primary-foreground: 222 47% 6%;
-    --secondary: 222 30% 13%;
+    --primary: 207 78% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 30% 14%;
     --secondary-foreground: 210 30% 85%;
-    --muted: 222 25% 15%;
+    --muted: 215 25% 16%;
     --muted-foreground: 215 20% 55%;
-    --accent: 271 100% 72%;
+    --accent: 207 86% 66%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
-    --border: 222 20% 18%;
-    --input: 222 20% 18%;
-    --ring: 239 100% 75%;
-    --surface-glass: 222 35% 11%;
-    --glow-primary: 239 100% 75%;
-    --glow-accent: 271 100% 72%;
+    --border: 215 20% 18%;
+    --input: 215 20% 18%;
+    --ring: 207 78% 58%;
+    --surface-glass: 215 35% 12%;
+    --glow-primary: 207 78% 58%;
+    --glow-accent: 207 86% 66%;
+    --bg-page: hsl(215 40% 8%);
   }
 }
 
@@ -306,10 +302,20 @@
 
 /* ─── Brand gradient utilities ─── */
 .text-brand-gradient {
+  display: inline-block;
+  padding-bottom: 0.12em;
+  line-height: 1.2;
   background: var(--brand-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.text-brand-title {
+  display: inline-block;
+  padding-bottom: 0.14em;
+  line-height: 1.15;
+  color: hsl(var(--primary));
 }
 
 .bg-brand-gradient {

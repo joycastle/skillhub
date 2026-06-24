@@ -45,6 +45,8 @@ class SkillPackageValidatorTest {
         assertEquals("SKILL.md", SkillPackagePolicy.normalizeEntryPath("skill.md"));
         assertEquals("SKILL.md", SkillPackagePolicy.normalizeEntryPath("Skill.MD"));
         assertEquals("nested/SKILL.md", SkillPackagePolicy.normalizeEntryPath("nested/skill.md"));
+        assertEquals("SKILL.md", SkillPackagePolicy.normalizeEntryPath("./SKILL.md"));
+        assertEquals("README.md", SkillPackagePolicy.normalizeEntryPath("./README.md"));
     }
 
     @Test
@@ -79,6 +81,74 @@ class SkillPackageValidatorTest {
 
         assertFalse(result.passed());
         assertTrue(result.errors().stream().anyMatch(e -> e.contains("Missing required file: SKILL.md")));
+    }
+
+    @Test
+    void acceptsNestedSkillMd() {
+        String skillMdContent = """
+            ---
+            name: html-upload
+            description: Upload HTML
+            version: 1.0.0
+            ---
+            Body
+            """;
+
+        List<PackageEntry> entries = List.of(
+            new PackageEntry("README.md", "readme".getBytes(), 6, "text/markdown"),
+            new PackageEntry("skills/html-upload/SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown"),
+            new PackageEntry("bin/runner", "binary".getBytes(), 6, "application/octet-stream")
+        );
+
+        ValidationResult result = validator.validate(entries);
+
+        assertTrue(result.passed());
+        assertTrue(result.errors().isEmpty());
+    }
+
+    @Test
+    void rejectsMultipleSkillMdFiles() {
+        String skillMdContent = """
+            ---
+            name: a
+            description: A
+            version: 1.0.0
+            ---
+            """;
+
+        List<PackageEntry> entries = List.of(
+            new PackageEntry("dir-a/SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown"),
+            new PackageEntry("dir-b/SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown")
+        );
+
+        ValidationResult result = validator.validate(entries);
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(e -> e.contains("multiple SKILL.md")));
+    }
+
+    @Test
+    void acceptsExtensionlessRuntimeFiles() {
+        String skillMdContent = """
+            ---
+            name: html-upload
+            description: Upload HTML
+            version: 1.0.0
+            ---
+            Body
+            """;
+
+        List<PackageEntry> entries = List.of(
+            new PackageEntry("README.md", "readme".getBytes(), 6, "text/markdown"),
+            new PackageEntry("VERSION", "1.0.0".getBytes(), 5, "text/plain"),
+            new PackageEntry("bin/html_viewer_upload", new byte[1024], 1024, "application/octet-stream"),
+            new PackageEntry("skills/html-upload/SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown")
+        );
+
+        ValidationResult result = validator.validate(entries);
+
+        assertTrue(result.passed());
+        assertTrue(result.warnings().isEmpty());
     }
 
     @Test

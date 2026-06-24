@@ -150,7 +150,20 @@ public class GlobalExceptionHandler {
                 apiResponseFactory.error(500, "error.internal"));
     }
 
-    private void logHandledException(HttpStatus status, String messageCode, HttpServletRequest request) {
+    private void logHandledException(HttpStatus status, String messageCode, HttpServletRequest request, Object... detailArgs) {
+        if (detailArgs != null && detailArgs.length > 0) {
+            logger.info(
+                    "API request failed [requestId={}, status={}, method={}, path={}, userId={}, code={}, detail={}]",
+                    MDC.get("requestId"),
+                    status.value(),
+                    request.getMethod(),
+                    sensitiveLogSanitizer.sanitizeRequestTarget(request),
+                    resolveUserId(request),
+                    messageCode,
+                    java.util.Arrays.toString(detailArgs)
+            );
+            return;
+        }
         logger.info(
                 "API request failed [requestId={}, status={}, method={}, path={}, userId={}, code={}]",
                 MDC.get("requestId"),
@@ -165,7 +178,7 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiResponse<Void>> renderLocalizedError(LocalizedMessage error,
                                                                    HttpStatus status,
                                                                    HttpServletRequest request) {
-        logHandledException(status, error.messageCode(), request);
+        logHandledException(status, error.messageCode(), request, error.messageArgs());
         return ResponseEntity.status(status).body(
                 apiResponseFactory.error(status.value(), error.messageCode(), error.messageArgs()));
     }

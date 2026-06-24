@@ -12,6 +12,7 @@ import com.iflytek.skillhub.dto.ApiResponseFactory;
 import com.iflytek.skillhub.dto.SkillReportMutationResponse;
 import com.iflytek.skillhub.dto.SkillReportSubmitRequest;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping({"/api/v1/skills", "/api/web/skills"})
+@ConditionalOnProperty(name = "skillhub.governance.enabled", havingValue = "true", matchIfMissing = true)
 public class SkillReportController extends BaseApiController {
 
     private final NamespaceRepository namespaceRepository;

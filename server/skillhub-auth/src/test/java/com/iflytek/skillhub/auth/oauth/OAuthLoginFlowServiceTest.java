@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
+import com.iflytek.skillhub.auth.oauth.FeishuOAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 
@@ -19,7 +21,8 @@ class OAuthLoginFlowServiceTest {
         OAuthLoginFlowService service = new OAuthLoginFlowService(
                 List.of(),
                 mock(AccessPolicy.class),
-                mock(IdentityBindingService.class)
+                mock(IdentityBindingService.class),
+                mock(FeishuOAuth2UserService.class)
         );
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter("returnTo", "/dashboard/publish");
@@ -37,7 +40,8 @@ class OAuthLoginFlowServiceTest {
         OAuthLoginFlowService service = new OAuthLoginFlowService(
                 List.of(),
                 mock(AccessPolicy.class),
-                mock(IdentityBindingService.class)
+                mock(IdentityBindingService.class),
+                mock(FeishuOAuth2UserService.class)
         );
 
         String redirect = service.resolveFailureRedirect(
@@ -53,7 +57,8 @@ class OAuthLoginFlowServiceTest {
         OAuthLoginFlowService service = new OAuthLoginFlowService(
                 List.of(),
                 mock(AccessPolicy.class),
-                mock(IdentityBindingService.class)
+                mock(IdentityBindingService.class),
+                mock(FeishuOAuth2UserService.class)
         );
         MockHttpServletRequest request = new MockHttpServletRequest();
         HttpSession session = request.getSession(true);

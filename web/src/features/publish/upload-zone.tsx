@@ -4,32 +4,58 @@ import { useDropzone } from 'react-dropzone'
 import { cn } from '@/shared/lib/utils'
 
 interface UploadZoneProps {
-  onFileSelect: (file: File) => void
+  onFilesSelect: (files: File[]) => void
   disabled?: boolean
+  multiple?: boolean
+  maxFiles?: number
+}
+
+const ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tgz', '.gz'] as const
+const DEFAULT_MAX_FILES = 20
+
+function isSupportedArchive(file: File): boolean {
+  const lowerName = file.name.toLowerCase()
+  return ARCHIVE_EXTENSIONS.some((extension) => lowerName.endsWith(extension))
 }
 
 /**
- * Provides the publish page dropzone for uploading one zip package at a time.
- * The component is intentionally stateless so packaging validation can remain in
- * the publish flow that knows the surrounding form and backend constraints.
+ * Dropzone for uploading one or many archive packages on the publish page.
  */
-export function UploadZone({ onFileSelect, disabled }: UploadZoneProps) {
+export function UploadZone({
+  onFilesSelect,
+  disabled,
+  multiple = true,
+  maxFiles = DEFAULT_MAX_FILES,
+}: UploadZoneProps) {
   const { t } = useTranslation()
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (acceptedFiles.length > 0) {
-        onFileSelect(acceptedFiles[0])
+        onFilesSelect(acceptedFiles)
       }
     },
-    [onFileSelect]
+    [onFilesSelect]
   )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'application/zip': ['.zip'],
+      'application/x-tar': ['.tar'],
+      'application/gzip': ['.gz', '.tgz', '.tar.gz'],
+      'application/x-gzip': ['.gz', '.tgz', '.tar.gz'],
     },
-    maxFiles: 1,
+    validator: (file) => {
+      if (!isSupportedArchive(file)) {
+        return {
+          code: 'file-invalid-type',
+          message: t('upload.unsupportedFormat'),
+        }
+      }
+      return null
+    },
+    multiple,
+    maxFiles: multiple ? maxFiles : 1,
     disabled,
   })
 
@@ -66,8 +92,12 @@ export function UploadZone({ onFileSelect, disabled }: UploadZoneProps) {
           <p className="text-sm text-primary font-medium">{t('upload.dropHint')}</p>
         ) : (
           <>
-            <p className="text-sm font-medium text-foreground">{t('upload.dragHint')}</p>
-            <p className="text-xs text-muted-foreground">{t('upload.formatHint')}</p>
+            <p className="text-sm font-medium text-foreground">
+              {multiple ? t('upload.dragHintMultiple') : t('upload.dragHint')}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {multiple ? t('upload.formatHintMultiple', { max: maxFiles }) : t('upload.formatHint')}
+            </p>
           </>
         )}
       </div>

@@ -10,36 +10,25 @@ import { EmptyState } from '@/shared/components/empty-state'
 import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import { DashboardPageHeader } from '@/shared/components/dashboard-page-header'
 import { Pagination } from '@/shared/components/pagination'
-import { useArchiveSkill, useUnarchiveSkill, useWithdrawSkillReview } from '@/shared/hooks/use-skill-queries'
-import { useMyNamespaces } from '@/shared/hooks/use-namespace-queries'
-import { useMySkills, useSubmitPromotion } from '@/shared/hooks/use-user-queries'
+import { useArchiveSkill, useUnarchiveSkill } from '@/shared/hooks/use-skill-queries'
+import { useSkillRepositories } from '@/shared/hooks/use-skill-repositories'
+import { resolveRepositoryDisplayName } from '@/shared/lib/repository-display'
+import { useMySkills } from '@/shared/hooks/use-user-queries'
 import { useDebounce } from '@/shared/hooks/use-debounce'
-import { getHeadlineVersion, getPublishedVersion, getOwnerPreviewVersion, hasPendingOwnerPreview } from '@/shared/lib/skill-lifecycle'
+import { isGovernanceEnabled } from '@/shared/config/features'
 import { formatCompactCount } from '@/shared/lib/number-format'
+import { getHeadlineVersion, getPublishedVersion, getOwnerPreviewVersion, hasPendingOwnerPreview } from '@/shared/lib/skill-lifecycle'
+import { normalizeVersionStatusForDisplay, shouldShowSkillWorkflowStatus } from '@/shared/lib/version-status-display'
 import { toast } from '@/shared/lib/toast'
 import { buildReturnTo } from '@/shared/lib/auth-route'
-import { ApiError } from '@/api/client'
 import { getMySkillEmptyStateKey, getMySkillFilters, type MySkillFilter } from './my-skill-filters'
 
 const PAGE_SIZE = 10
-const ALL_NAMESPACES_VALUE = '__all_namespaces__'
+const ALL_REPOSITORIES_VALUE = '__all_repositories__'
 
 /**
  * Dashboard page for skills owned by the current user.
- *
- * It combines lifecycle display, archive and unarchive actions, review withdrawal, and promotion
- * submission into one management surface.
  */
-function getPromotionConflictKey(error: ApiError): 'promotion.duplicate_pending' | 'promotion.already_promoted' | null {
-  if (error.serverMessageKey === 'promotion.duplicate_pending') {
-    return 'promotion.duplicate_pending'
-  }
-  if (error.serverMessageKey === 'promotion.already_promoted') {
-    return 'promotion.already_promoted'
-  }
-  return null
-}
-
 export function MySkillsPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -61,8 +50,6 @@ export function MySkillsPage() {
 
   const [archiveTarget, setArchiveTarget] = useState<{ namespace: string; slug: string; name: string } | null>(null)
   const [unarchiveTarget, setUnarchiveTarget] = useState<{ namespace: string; slug: string; name: string } | null>(null)
-  const [withdrawTarget, setWithdrawTarget] = useState<{ namespace: string; slug: string; name: string; version: string } | null>(null)
-  const [promotionTarget, setPromotionTarget] = useState<{ skillId: number; versionId: number; name: string; version: string } | null>(null)
 
   const updateSearch = useCallback((next: Partial<typeof search>, options?: { replace?: boolean }) => {
     navigate({
@@ -91,17 +78,15 @@ export function MySkillsPage() {
     q: keyword || undefined,
     namespace: namespaceFilter || undefined,
   })
-  const { data: namespaceOptions } = useMyNamespaces()
+  const { data: repositories } = useSkillRepositories()
 
   const skills = skillPage?.items ?? []
   const totalPages = skillPage ? Math.max(Math.ceil(skillPage.total / skillPage.size), 1) : 1
-  const availableFilters = getMySkillFilters(hasRole('SUPER_ADMIN'))
+  const availableFilters = getMySkillFilters(hasRole('SUPER_ADMIN'), isGovernanceEnabled())
   const hasActiveSearch = keyword.trim() !== '' || namespaceFilter !== ''
   const emptyStateKey = getMySkillEmptyStateKey(filter)
   const archiveMutation = useArchiveSkill()
   const unarchiveMutation = useUnarchiveSkill()
-  const withdrawMutation = useWithdrawSkillReview()
-  const submitPromotionMutation = useSubmitPromotion()
 
   const handleSkillClick = (namespace: string, slug: string) => {
     navigate({
@@ -118,61 +103,63 @@ export function MySkillsPage() {
   const handleUpdateSkill = (namespace: string, visibility?: string) => {
     navigate({
       to: '/dashboard/publish',
-      search: { namespace, visibility: visibility || 'PUBLIC' },
+      search: { namespace, visibility: visibility || 'WAREHOUSE' },
     })
   }
 
   const resolveStatusLabel = (status?: string) => {
-    if (status === 'HIDDEN') {
+    const displayStatus = normalizeVersionStatusForDisplay(status)
+    if (displayStatus === 'HIDDEN') {
       return t('mySkills.statusHidden')
     }
-    if (status === 'ARCHIVED') {
+    if (displayStatus === 'ARCHIVED') {
       return t('mySkills.statusArchived')
     }
-    if (status === 'PENDING_REVIEW') {
+    if (displayStatus === 'PENDING_REVIEW') {
       return t('mySkills.statusPendingReview')
     }
-    if (status === 'PUBLISHED') {
+    if (displayStatus === 'PUBLISHED') {
       return t('mySkills.statusPublished')
     }
-    if (status === 'REJECTED') {
+    if (displayStatus === 'REJECTED') {
       return t('mySkills.statusRejected')
     }
-    if (status === 'SCANNING') {
+    if (displayStatus === 'SCANNING') {
       return t('mySkills.statusScanning')
     }
-    if (status === 'SCAN_FAILED') {
+    if (displayStatus === 'SCAN_FAILED') {
       return t('mySkills.statusScanFailed')
     }
-    if (status === 'UPLOADED') {
+    if (displayStatus === 'UPLOADED') {
       return t('skillDetail.versionStatusUploaded')
     }
-    return status
+    return displayStatus
   }
 
   const resolveStatusClassName = (status?: string) => {
-    if (status === 'HIDDEN') {
+    const displayStatus = normalizeVersionStatusForDisplay(status)
+    if (displayStatus === 'HIDDEN') {
       return 'status-pill status-pill--archived'
     }
-    if (status === 'ARCHIVED') {
+    if (displayStatus === 'ARCHIVED') {
       return 'status-pill status-pill--archived'
     }
-    if (status === 'PENDING_REVIEW') {
+    if (displayStatus === 'PENDING_REVIEW') {
       return 'status-pill status-pill--review'
     }
-    if (status === 'PUBLISHED') {
+    if (displayStatus === 'PUBLISHED') {
       return 'status-pill status-pill--published'
     }
-    if (status === 'REJECTED') {
+    if (displayStatus === 'REJECTED') {
       return 'status-pill status-pill--rejected'
     }
-    if (status === 'SCANNING') {
+    if (displayStatus === 'SCANNING') {
       return 'status-pill status-pill--review'
     }
-    if (status === 'SCAN_FAILED') {
+    if (displayStatus === 'SCAN_FAILED') {
       return 'status-pill status-pill--rejected'
     }
-    if (status === 'UPLOADED') {
+    if (displayStatus === 'UPLOADED') {
       return 'status-pill status-pill--review'
     }
     return 'status-pill'
@@ -218,58 +205,6 @@ export function MySkillsPage() {
     }
   }
 
-  const handleWithdrawSkill = async () => {
-    if (!withdrawTarget) {
-      return
-    }
-    try {
-      await withdrawMutation.mutateAsync({
-        namespace: withdrawTarget.namespace,
-        slug: withdrawTarget.slug,
-        version: withdrawTarget.version,
-      })
-      toast.success(
-        t('mySkills.withdrawSuccessTitle'),
-        t('mySkills.withdrawSuccessDescription', { skill: withdrawTarget.name }),
-      )
-      setWithdrawTarget(null)
-    } catch (error) {
-      toast.error(t('mySkills.withdrawErrorTitle'), error instanceof Error ? error.message : '')
-      throw error
-    }
-  }
-
-  const handleSubmitPromotion = async () => {
-    if (!promotionTarget) {
-      return
-    }
-    try {
-      await submitPromotionMutation.mutateAsync({
-        sourceSkillId: promotionTarget.skillId,
-        sourceVersionId: promotionTarget.versionId,
-      })
-      toast.success(
-        t('mySkills.promotionSuccessTitle'),
-        t('mySkills.promotionSuccessDescription', { skill: promotionTarget.name, version: promotionTarget.version }),
-      )
-      setPromotionTarget(null)
-    } catch (error) {
-      if (error instanceof ApiError) {
-        const conflictKey = getPromotionConflictKey(error)
-        if (conflictKey === 'promotion.duplicate_pending') {
-          toast.error(t('mySkills.promotionDuplicateTitle'), t('mySkills.promotionDuplicateDescription'))
-          return
-        }
-        if (conflictKey === 'promotion.already_promoted') {
-          toast.error(t('mySkills.promotionAlreadyPromotedTitle'), t('mySkills.promotionAlreadyPromotedDescription'))
-          return
-        }
-      }
-      toast.error(t('mySkills.promotionErrorTitle'), error instanceof Error ? error.message : '')
-      throw error
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-4 animate-fade-up">
@@ -303,19 +238,19 @@ export function MySkillsPage() {
             className="sm:max-w-md"
           />
           <Select
-            value={namespaceFilter || ALL_NAMESPACES_VALUE}
+            value={namespaceFilter || ALL_REPOSITORIES_VALUE}
             onValueChange={(value) => {
-              updateSearch({ namespace: value === ALL_NAMESPACES_VALUE ? undefined : value, page: 0 })
+              updateSearch({ namespace: value === ALL_REPOSITORIES_VALUE ? undefined : value, page: 0 })
             }}
           >
-            <SelectTrigger aria-label={t('mySkills.namespaceFilterLabel')} className="sm:max-w-[14rem]">
+            <SelectTrigger aria-label={t('mySkills.repositoryFilterLabel')} className="sm:max-w-[14rem]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL_NAMESPACES_VALUE}>{t('mySkills.namespaceFilterAll')}</SelectItem>
-              {(namespaceOptions ?? []).map((ns: { id: number; slug: string }) => (
-                <SelectItem key={ns.id} value={ns.slug}>
-                  @{ns.slug}
+              <SelectItem value={ALL_REPOSITORIES_VALUE}>{t('mySkills.repositoryFilterAll')}</SelectItem>
+              {(repositories ?? []).map((repository) => (
+                <SelectItem key={repository.slug} value={repository.slug}>
+                  {repository.displayName}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -374,7 +309,9 @@ export function MySkillsPage() {
                           <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{skill.summary}</p>
                         )}
                         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                          <span className="handle-tag">@{skill.namespace}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {resolveRepositoryDisplayName(skill.namespace, repositories)}
+                          </span>
                           {headlineVersion ? (
                             <span className="font-mono text-xs">v{headlineVersion.version}</span>
                           ) : null}
@@ -394,12 +331,12 @@ export function MySkillsPage() {
                               {resolveStatusLabel(headlineVersion.status)}
                             </span>
                           ) : null}
-                          {hasPendingPreview && ownerPreviewVersion?.version !== headlineVersion?.version ? (
+                          {shouldShowSkillWorkflowStatus() && hasPendingPreview && ownerPreviewVersion?.version !== headlineVersion?.version ? (
                             <span className={resolveStatusClassName(ownerPreviewVersion?.status)}>
                               {resolveStatusLabel(ownerPreviewVersion?.status)}
                             </span>
                           ) : null}
-                          {!hasPendingPreview && ownerPreviewVersion?.status === 'REJECTED' && ownerPreviewVersion?.version !== headlineVersion?.version ? (
+                          {shouldShowSkillWorkflowStatus() && !hasPendingPreview && ownerPreviewVersion?.status === 'REJECTED' && ownerPreviewVersion?.version !== headlineVersion?.version ? (
                             <span className={resolveStatusClassName('REJECTED')}>
                               {resolveStatusLabel('REJECTED')}
                             </span>
@@ -413,45 +350,13 @@ export function MySkillsPage() {
                             variant="outline"
                             onClick={(event) => {
                               event.stopPropagation()
-                              handleUpdateSkill(skill.namespace, skill.visibility ?? 'PUBLIC')
+                              handleUpdateSkill(skill.namespace, skill.visibility ?? 'WAREHOUSE')
                             }}
                           >
                             {t('mySkills.update')}
                           </Button>
                         )}
-                        {hasPendingPreview && ownerPreviewVersion ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              setWithdrawTarget({
-                                namespace: skill.namespace,
-                                slug: skill.slug,
-                                name: skill.displayName,
-                                version: ownerPreviewVersion.version,
-                              })
-                            }}
-                          >
-                            {t('mySkills.withdrawReview')}
-                          </Button>
-                        ) : skill.canSubmitPromotion && publishedVersion ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              setPromotionTarget({
-                                skillId: skill.id,
-                                versionId: publishedVersion.id,
-                                name: skill.displayName,
-                                version: publishedVersion.version,
-                              })
-                            }}
-                          >
-                            {t('mySkills.promoteToGlobal')}
-                          </Button>
-                        ) : skill.status === 'ARCHIVED' ? (
+                        {skill.status === 'ARCHIVED' ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -516,19 +421,6 @@ export function MySkillsPage() {
       )}
 
       <ConfirmDialog
-        open={!!promotionTarget}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPromotionTarget(null)
-          }
-        }}
-        title={t('mySkills.promotionConfirmTitle')}
-        description={promotionTarget ? t('mySkills.promotionConfirmDescription', { skill: promotionTarget.name, version: promotionTarget.version }) : ''}
-        confirmText={t('mySkills.promoteToGlobal')}
-        onConfirm={handleSubmitPromotion}
-      />
-
-      <ConfirmDialog
         open={!!archiveTarget}
         onOpenChange={(open) => {
           if (!open) {
@@ -552,19 +444,6 @@ export function MySkillsPage() {
         description={unarchiveTarget ? t('mySkills.unarchiveConfirmDescription', { skill: unarchiveTarget.name }) : ''}
         confirmText={t('mySkills.unarchive')}
         onConfirm={handleUnarchiveSkill}
-      />
-
-      <ConfirmDialog
-        open={!!withdrawTarget}
-        onOpenChange={(open) => {
-          if (!open) {
-            setWithdrawTarget(null)
-          }
-        }}
-        title={t('mySkills.withdrawConfirmTitle')}
-        description={withdrawTarget ? t('mySkills.withdrawConfirmDescription', { skill: withdrawTarget.name }) : ''}
-        confirmText={t('mySkills.withdrawReview')}
-        onConfirm={handleWithdrawSkill}
       />
     </div>
   )

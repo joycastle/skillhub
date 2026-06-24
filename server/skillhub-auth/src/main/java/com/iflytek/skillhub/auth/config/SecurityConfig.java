@@ -1,10 +1,11 @@
 package com.iflytek.skillhub.auth.config;
 
 import com.iflytek.skillhub.auth.oauth.CustomOAuth2UserService;
-import com.iflytek.skillhub.auth.oauth.CustomOidcUserService;
+import com.iflytek.skillhub.auth.oauth.FeishuOAuth2AccessTokenResponseClient;
 import com.iflytek.skillhub.auth.oauth.OAuth2LoginFailureHandler;
 import com.iflytek.skillhub.auth.oauth.OAuth2LoginSuccessHandler;
 import com.iflytek.skillhub.auth.oauth.SkillHubOAuth2AuthorizationRequestResolver;
+import com.iflytek.skillhub.auth.agent.AgentJwtAuthenticationFilter;
 import com.iflytek.skillhub.auth.mock.MockAuthFilter;
 import com.iflytek.skillhub.auth.policy.RouteSecurityPolicyRegistry;
 import com.iflytek.skillhub.auth.token.ApiTokenAuthenticationFilter;
@@ -55,36 +56,39 @@ public class SecurityConfig {
             "frame-ancestors 'none'",
             "form-action 'self'");
 
+    private final FeishuOAuth2AccessTokenResponseClient feishuAccessTokenResponseClient;
     private final CustomOAuth2UserService customOAuth2UserService;
-    private final CustomOidcUserService customOidcUserService;
     private final SkillHubOAuth2AuthorizationRequestResolver authorizationRequestResolver;
     private final OAuth2LoginSuccessHandler successHandler;
     private final OAuth2LoginFailureHandler failureHandler;
-    private final ApiTokenAuthenticationFilter apiTokenAuthenticationFilter;
-    private final ApiTokenScopeFilter apiTokenScopeFilter;
+    private final ObjectProvider<ApiTokenAuthenticationFilter> apiTokenAuthenticationFilterProvider;
+    private final ObjectProvider<ApiTokenScopeFilter> apiTokenScopeFilterProvider;
+    private final AgentJwtAuthenticationFilter agentJwtAuthenticationFilter;
     private final AuthenticationEntryPoint apiAuthenticationEntryPoint;
     private final AccessDeniedHandler apiAccessDeniedHandler;
     private final ObjectProvider<MockAuthFilter> mockAuthFilterProvider;
     private final RouteSecurityPolicyRegistry routeSecurityPolicyRegistry;
 
-    public SecurityConfig(CustomOAuth2UserService customOAuth2UserService,
-                          CustomOidcUserService customOidcUserService,
+    public SecurityConfig(FeishuOAuth2AccessTokenResponseClient feishuAccessTokenResponseClient,
+                          CustomOAuth2UserService customOAuth2UserService,
                           SkillHubOAuth2AuthorizationRequestResolver authorizationRequestResolver,
                           OAuth2LoginSuccessHandler successHandler,
                           OAuth2LoginFailureHandler failureHandler,
-                          ApiTokenAuthenticationFilter apiTokenAuthenticationFilter,
-                          ApiTokenScopeFilter apiTokenScopeFilter,
+                          ObjectProvider<ApiTokenAuthenticationFilter> apiTokenAuthenticationFilterProvider,
+                          ObjectProvider<ApiTokenScopeFilter> apiTokenScopeFilterProvider,
+                          AgentJwtAuthenticationFilter agentJwtAuthenticationFilter,
                           AuthenticationEntryPoint apiAuthenticationEntryPoint,
                           AccessDeniedHandler apiAccessDeniedHandler,
                           ObjectProvider<MockAuthFilter> mockAuthFilterProvider,
                           RouteSecurityPolicyRegistry routeSecurityPolicyRegistry) {
+        this.feishuAccessTokenResponseClient = feishuAccessTokenResponseClient;
         this.customOAuth2UserService = customOAuth2UserService;
-        this.customOidcUserService = customOidcUserService;
         this.authorizationRequestResolver = authorizationRequestResolver;
         this.successHandler = successHandler;
         this.failureHandler = failureHandler;
-        this.apiTokenAuthenticationFilter = apiTokenAuthenticationFilter;
-        this.apiTokenScopeFilter = apiTokenScopeFilter;
+        this.apiTokenAuthenticationFilterProvider = apiTokenAuthenticationFilterProvider;
+        this.apiTokenScopeFilterProvider = apiTokenScopeFilterProvider;
+        this.agentJwtAuthenticationFilter = agentJwtAuthenticationFilter;
         this.apiAuthenticationEntryPoint = apiAuthenticationEntryPoint;
         this.apiAccessDeniedHandler = apiAccessDeniedHandler;
         this.mockAuthFilterProvider = mockAuthFilterProvider;
@@ -120,9 +124,9 @@ public class SecurityConfig {
             })
             .oauth2Login(oauth2 -> oauth2
                 .authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(authorizationRequestResolver))
+                .tokenEndpoint(token -> token.accessTokenResponseClient(feishuAccessTokenResponseClient))
                 .userInfoEndpoint(userInfo -> userInfo
-                    .userService(customOAuth2UserService)
-                    .oidcUserService(customOidcUserService))
+                    .userService(customOAuth2UserService))
                 .successHandler(successHandler)
                 .failureHandler(failureHandler)
             )
@@ -155,9 +159,20 @@ public class SecurityConfig {
                 .logoutSuccessUrl("/")
                 .invalidateHttpSession(true)
                 .deleteCookies("SESSION")
-            )
-            .addFilterBefore(apiTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(apiTokenScopeFilter, ApiTokenAuthenticationFilter.class);
+            );
+
+        ApiTokenAuthenticationFilter apiTokenAuthenticationFilter =
+                apiTokenAuthenticationFilterProvider.getIfAvailable();
+        if (apiTokenAuthenticationFilter != null) {
+            http.addFilterBefore(apiTokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            ApiTokenScopeFilter apiTokenScopeFilter = apiTokenScopeFilterProvider.getIfAvailable();
+            if (apiTokenScopeFilter != null) {
+                http.addFilterAfter(apiTokenScopeFilter, ApiTokenAuthenticationFilter.class);
+            }
+            http.addFilterBefore(agentJwtAuthenticationFilter, ApiTokenAuthenticationFilter.class);
+        } else {
+            http.addFilterBefore(agentJwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        }
 
         MockAuthFilter mockAuthFilter = mockAuthFilterProvider.getIfAvailable();
         if (mockAuthFilter != null) {

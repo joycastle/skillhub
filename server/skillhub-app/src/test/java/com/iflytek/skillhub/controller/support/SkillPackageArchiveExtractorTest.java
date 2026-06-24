@@ -4,10 +4,15 @@ import com.iflytek.skillhub.config.SkillPublishProperties;
 import com.iflytek.skillhub.domain.skill.validation.PackageEntry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -143,7 +148,7 @@ class SkillPackageArchiveExtractorTest {
     }
 
     @Test
-    void promotesSkillMdFromSubdirectoryAndDiscardsRootFiles() throws Exception {
+    void keepsSiblingFilesWhenSkillMdIsInSubdirectory() throws Exception {
         byte[] zipBytes = createZip(Map.of(
                 "my-skill/SKILL.md", "---\nname: test\n---\n".getBytes(),
                 "my-skill/README.md", "# readme".getBytes(),
@@ -153,14 +158,15 @@ class SkillPackageArchiveExtractorTest {
 
         SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
 
-        assertEquals(2, result.entries().size());
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("SKILL.md")));
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("README.md")));
-        assertTrue(result.warnings().stream().anyMatch(w -> w.contains("other.txt")));
+        assertEquals(3, result.entries().size());
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("my-skill/SKILL.md")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("my-skill/README.md")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("other.txt")));
+        assertTrue(result.warnings().isEmpty());
     }
 
     @Test
-    void promotesCaseInsensitiveSkillMdFromSubdirectory() throws Exception {
+    void keepsCaseInsensitiveSkillMdPathInPackage() throws Exception {
         byte[] zipBytes = createZip(Map.of(
                 "my-skill/skill.md", "---\nname: test\n---\n".getBytes(),
                 "my-skill/README.md", "# readme".getBytes(),
@@ -170,27 +176,31 @@ class SkillPackageArchiveExtractorTest {
 
         SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
 
-        assertEquals(2, result.entries().size());
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("SKILL.md")));
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("README.md")));
-        assertTrue(result.warnings().stream().anyMatch(w -> w.contains("other.txt")));
+        assertEquals(3, result.entries().size());
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("my-skill/SKILL.md")));
+        assertTrue(result.warnings().isEmpty());
     }
 
     @Test
-    void rejectsAmbiguousMultipleSkillMdInSubdirectories() throws Exception {
+    void keepsNestedPathsWhenSkillMdIsInSubdirectory() throws Exception {
         byte[] zipBytes = createZip(Map.of(
-                "dir1/SKILL.md", "---\nname: a\n---\n".getBytes(),
-                "dir2/SKILL.md", "---\nname: b\n---\n".getBytes()
+                "my-skill/SKILL.md", "---\nname: test\n---\n".getBytes(),
+                "my-skill/sub/deep.md", "nested".getBytes(),
+                "stray.txt", "ignored".getBytes()
         ));
         MockMultipartFile file = new MockMultipartFile("file", "test.zip", "application/zip", zipBytes);
 
-        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
-                () -> extractor.extractWithWarnings(file));
-        assertTrue(error.getMessage().contains("Ambiguous"));
+        SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
+
+        assertEquals(3, result.entries().size());
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("my-skill/SKILL.md")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("my-skill/sub/deep.md")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("stray.txt")));
+        assertTrue(result.warnings().isEmpty());
     }
 
     @Test
-    void noPromotionWhenSkillMdAtRoot() throws Exception {
+    void keepsAllFilesWhenSkillMdAtRoot() throws Exception {
         byte[] zipBytes = createZip(Map.of(
                 "SKILL.md", "---\nname: test\n---\n".getBytes(),
                 "sub/file.txt", "content".getBytes()
@@ -201,23 +211,6 @@ class SkillPackageArchiveExtractorTest {
 
         assertEquals(2, result.entries().size());
         assertTrue(result.warnings().isEmpty());
-    }
-
-    @Test
-    void promotesSubdirectoryPreservingNestedPaths() throws Exception {
-        byte[] zipBytes = createZip(Map.of(
-                "my-skill/SKILL.md", "---\nname: test\n---\n".getBytes(),
-                "my-skill/sub/deep.md", "nested".getBytes(),
-                "stray.txt", "ignored".getBytes()
-        ));
-        MockMultipartFile file = new MockMultipartFile("file", "test.zip", "application/zip", zipBytes);
-
-        SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
-
-        assertEquals(2, result.entries().size());
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("SKILL.md")));
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("sub/deep.md")));
-        assertTrue(result.warnings().stream().anyMatch(w -> w.contains("stray.txt")));
     }
 
     @Test
@@ -253,15 +246,14 @@ class SkillPackageArchiveExtractorTest {
 
         SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
 
-        // macOS files filtered, root stripped to ui-ux-pro-max/, then uiux/ promoted
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("SKILL.md")));
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("scripts/core.py")));
-        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("data/styles.csv")));
+        // macOS files filtered, single outer folder stripped, full bundle kept
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("uiux/SKILL.md")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("uiux/scripts/core.py")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("uiux/data/styles.csv")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("stray.csv")));
         assertTrue(result.entries().stream().noneMatch(e -> e.path().contains("MACOSX")));
         assertTrue(result.entries().stream().noneMatch(e -> e.path().contains(".DS_Store")));
-        // stray.csv outside uiux/ should be in warnings
-        assertFalse(result.warnings().isEmpty());
-        assertTrue(result.warnings().stream().anyMatch(w -> w.contains("stray.csv")));
+        assertTrue(result.warnings().isEmpty());
     }
 
     @Test
@@ -296,6 +288,140 @@ class SkillPackageArchiveExtractorTest {
         // No SKILL.md found — entries returned as-is, validator will catch the error
         assertEquals(2, result.entries().size());
         assertTrue(result.warnings().isEmpty());
+    }
+
+    @Test
+    void keepsFullBundleWhenSkillMdIsNestedDeeply() throws Exception {
+        byte[] zipBytes = createZip(Map.of(
+                "dist/README.md", "# distro".getBytes(),
+                "dist/VERSION", "1.0.0".getBytes(),
+                "dist/bin/runner", "binary".getBytes(),
+                "dist/skills/html-upload/SKILL.md", "---\nname: html-upload\nversion: 1.0.0\n---\n".getBytes()
+        ));
+        MockMultipartFile file = new MockMultipartFile("file", "test.zip", "application/zip", zipBytes);
+
+        SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
+
+        assertEquals(4, result.entries().size());
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("README.md")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("VERSION")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("bin/runner")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("skills/html-upload/SKILL.md")));
+        assertTrue(result.warnings().isEmpty());
+    }
+
+    @Test
+    void extractsTarCreatedFromCurrentDirectory(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("SKILL.md"), "---\nname: weekly-report\nversion: 1.0.0\n---\n");
+        Files.writeString(tempDir.resolve("README.md"), "# readme");
+        Path tarPath = tempDir.resolve("package.tar");
+        assertEquals(0, new ProcessBuilder("tar", "-cf", tarPath.toString(), ".")
+                .directory(tempDir.toFile())
+                .redirectErrorStream(true)
+                .start()
+                .waitFor());
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "weekly-report.tar",
+                "application/x-tar",
+                Files.readAllBytes(tarPath));
+
+        SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
+
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("SKILL.md")));
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("README.md")));
+    }
+
+    @Test
+    void extractsTarGzFromMultipartStreamWithoutMarkSupport(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("SKILL.md"), "---\nname: weekly-report\nversion: 1.0.0\n---\n");
+        Path tarGzPath = tempDir.resolve("package.tar.gz");
+        assertEquals(0, new ProcessBuilder("tar", "-czf", tarGzPath.toString(), ".")
+                .directory(tempDir.toFile())
+                .redirectErrorStream(true)
+                .start()
+                .waitFor());
+
+        byte[] payload = Files.readAllBytes(tarGzPath);
+        MultipartFile file = new MultipartFile() {
+            @Override
+            public String getName() {
+                return "file";
+            }
+
+            @Override
+            public String getOriginalFilename() {
+                return "weekly-report.tar.gz";
+            }
+
+            @Override
+            public String getContentType() {
+                return "application/gzip";
+            }
+
+            @Override
+            public boolean isEmpty() {
+                return payload.length == 0;
+            }
+
+            @Override
+            public long getSize() {
+                return payload.length;
+            }
+
+            @Override
+            public byte[] getBytes() {
+                return payload;
+            }
+
+            @Override
+            public InputStream getInputStream() {
+                return new InputStream() {
+                    private int index;
+
+                    @Override
+                    public int read() {
+                        return index < payload.length ? payload[index++] & 0xff : -1;
+                    }
+
+                    @Override
+                    public boolean markSupported() {
+                        return false;
+                    }
+                };
+            }
+
+            @Override
+            public void transferTo(java.io.File dest) {
+                throw new UnsupportedOperationException();
+            }
+        };
+
+        SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
+
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("SKILL.md")));
+    }
+
+    @Test
+    void extractsTarGzCreatedFromCurrentDirectory(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("SKILL.md"), "---\nname: weekly-report\nversion: 1.0.0\n---\n");
+        Path tarGzPath = tempDir.resolve("package.tar.gz");
+        assertEquals(0, new ProcessBuilder("tar", "-czf", tarGzPath.toString(), ".")
+                .directory(tempDir.toFile())
+                .redirectErrorStream(true)
+                .start()
+                .waitFor());
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "weekly-report.tar.gz",
+                "application/gzip",
+                Files.readAllBytes(tarGzPath));
+
+        SkillPackageArchiveExtractor.ExtractionResult result = extractor.extractWithWarnings(file);
+
+        assertTrue(result.entries().stream().anyMatch(e -> e.path().equals("SKILL.md")));
     }
 
     private byte[] createZip(String entryName, String content) throws Exception {

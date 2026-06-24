@@ -7,6 +7,7 @@ import com.iflytek.skillhub.domain.review.ReviewTaskRepository;
 import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.shared.exception.DomainForbiddenException;
 import com.iflytek.skillhub.domain.skill.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ public class SkillReviewSubmitService {
     private final NamespaceMemberRepository namespaceMemberRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final boolean governanceEnabled;
 
     public SkillReviewSubmitService(
             SkillRepository skillRepository,
@@ -45,13 +47,15 @@ public class SkillReviewSubmitService {
             ReviewTaskRepository reviewTaskRepository,
             NamespaceMemberRepository namespaceMemberRepository,
             ApplicationEventPublisher eventPublisher,
-            Clock clock) {
+            Clock clock,
+            @Value("${skillhub.governance.enabled:true}") boolean governanceEnabled) {
         this.skillRepository = skillRepository;
         this.skillVersionRepository = skillVersionRepository;
         this.reviewTaskRepository = reviewTaskRepository;
         this.namespaceMemberRepository = namespaceMemberRepository;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
+        this.governanceEnabled = governanceEnabled;
     }
 
     /**
@@ -69,6 +73,9 @@ public class SkillReviewSubmitService {
     @Transactional
     public void submitForReview(Long skillId, Long versionId, SkillVisibility targetVisibility,
                                 String actorUserId, Map<Long, NamespaceRole> userNamespaceRoles) {
+        if (!governanceEnabled) {
+            throw new DomainBadRequestException("error.governance.disabled");
+        }
         Skill skill = skillRepository.findById(skillId)
                 .orElseThrow(() -> new DomainBadRequestException("error.skill.notFound", skillId));
         SkillVersion version = skillVersionRepository.findById(versionId)

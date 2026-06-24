@@ -75,14 +75,23 @@ public class SkillPackageValidator {
                 warnings.add(contentMismatch);
             }
 
-            if (SkillPackagePolicy.SKILL_MD_PATH.equals(normalizedPath) && skillMd == null) {
+            if (SkillPackagePolicy.isSkillMdPath(normalizedPath) && skillMd == null) {
                 skillMd = entry;
             }
         }
 
-        // 1. Check SKILL.md exists at root
+        long skillMdCount = entries.stream()
+                .map(PackageEntry::path)
+                .filter(SkillPackagePolicy::isSkillMdPath)
+                .count();
+        if (skillMdCount > 1) {
+            errors.add("Ambiguous package: multiple SKILL.md files found");
+            return ValidationResult.of(errors, warnings);
+        }
+
+        // 1. Check SKILL.md exists anywhere in the package
         if (skillMd == null) {
-            errors.add("Missing required file: SKILL.md at root");
+            errors.add("Missing required file: SKILL.md");
             return ValidationResult.of(errors, warnings);
         }
 
@@ -116,6 +125,11 @@ public class SkillPackageValidator {
     }
 
     private boolean hasAllowedExtension(String normalizedPath) {
+        int slashIndex = normalizedPath.lastIndexOf('/');
+        String baseName = slashIndex >= 0 ? normalizedPath.substring(slashIndex + 1) : normalizedPath;
+        if (!baseName.contains(".")) {
+            return true;
+        }
         return allowedExtensions.stream().anyMatch(normalizedPath::endsWith);
     }
 

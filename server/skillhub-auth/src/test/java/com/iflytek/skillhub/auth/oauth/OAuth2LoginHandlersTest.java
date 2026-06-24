@@ -27,7 +27,8 @@ class OAuth2LoginHandlersTest {
         OAuthLoginFlowService oauthLoginFlowService = mock(OAuthLoginFlowService.class);
         OAuth2LoginSuccessHandler handler = new OAuth2LoginSuccessHandler(
                 new com.iflytek.skillhub.auth.session.PlatformSessionService(),
-                oauthLoginFlowService
+                oauthLoginFlowService,
+                ""
         );
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -76,7 +77,8 @@ class OAuth2LoginHandlersTest {
         OAuthLoginFlowService oauthLoginFlowService = mock(OAuthLoginFlowService.class);
         OAuth2LoginSuccessHandler handler = new OAuth2LoginSuccessHandler(
                 new com.iflytek.skillhub.auth.session.PlatformSessionService(),
-                oauthLoginFlowService
+                oauthLoginFlowService,
+                ""
         );
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setMethod("GET");
@@ -104,7 +106,7 @@ class OAuth2LoginHandlersTest {
     @Test
     void failureHandler_redirectsBackToLoginWithReturnTo() throws Exception {
         OAuthLoginFlowService oauthLoginFlowService = mock(OAuthLoginFlowService.class);
-        OAuth2LoginFailureHandler handler = new OAuth2LoginFailureHandler(oauthLoginFlowService);
+        OAuth2LoginFailureHandler handler = new OAuth2LoginFailureHandler(oauthLoginFlowService, "");
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
         HttpSession session = request.getSession(true);

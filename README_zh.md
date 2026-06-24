@@ -131,6 +131,13 @@ skillhub list
 
 📖 完整指南：[docs/skillhub/guide/cli.md](docs/skillhub/guide/cli.md)
 
+## 公司内部轻量版用法
+
+本 fork 的第一版内部用法保持轻量：Skill 以 zip 包上传和下载，包内只强制要求根目录 `SKILL.md`。Agent 可以先通过 `/api/agent/v1/skills/search` 搜索，再下载选中的 zip 到挂载工作区，在沙箱内解压后读取 `SKILL.md` 和按需读取 `references/`、`templates/` 等补充文件。
+
+- 最小模板：[`skill-template/`](skill-template/)
+- 部署与 Agent API 说明：[`docs/internal-light-skillhub.md`](docs/internal-light-skillhub.md)
+
 ## 开发
 
 ### 前置要求
