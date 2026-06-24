@@ -24,4 +24,16 @@ public final class OAuthLoginRedirectSupport {
         }
         return trimmed;
     }
+
+    public static String toWebRedirect(String path, String webBaseUrl) {
+        String sanitized = sanitizeReturnTo(path);
+        if (sanitized == null) {
+            sanitized = DEFAULT_TARGET_URL;
+        }
+        if (webBaseUrl == null || webBaseUrl.isBlank()) {
+            return sanitized;
+        }
+        String base = webBaseUrl.endsWith("/") ? webBaseUrl.substring(0, webBaseUrl.length() - 1) : webBaseUrl;
+        return base + sanitized;
+    }
 }

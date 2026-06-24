@@ -1,4 +1,8 @@
 {
+  "brand": {
+    "name": "JoyHub",
+    "tagline": "欢迎大家发现与分享 AI 技能"
+  },
   "nav": {
     "landing": "首页",
     "home": "技能中心",
@@ -146,7 +150,13 @@
     "popularDescription": "社区最受欢迎的技能",
     "latestTitle": "最新发布",
     "latestDescription": "刚刚发布的新技能",
-    "viewAll": "查看全部 →",
+    "viewAll": "查看全部",
+    "showcase": {
+      "badge": "技能广场",
+      "title": "发现团队正在用的 AI 技能",
+      "emptyTitle": "还没有公开技能",
+      "emptyDescription": "成为第一个分享者，把周报、代码审查、数据分析等能力打包成技能。"
+    },
     "quickStart": {
       "title": "快速开始",
       "subtitle": "Quick Start",
@@ -341,11 +351,11 @@
     "title": "我的技能",
     "subtitle": "管理你发布的技能",
     "searchPlaceholder": "搜索技能名称、Slug 或描述",
-    "namespaceFilterLabel": "按命名空间过滤",
-    "namespaceFilterAll": "全部命名空间",
+    "repositoryFilterLabel": "按技能仓库筛选",
+    "repositoryFilterAll": "全部仓库",
     "clearSearch": "清除筛选",
     "emptySearchTitle": "未找到匹配的技能",
-    "emptySearchDescription": "试试调整关键字或切换命名空间",
+    "emptySearchDescription": "试试调整关键字或切换技能仓库",
     "filters": {
       "ALL": "全部",
       "PENDING_REVIEW": "待审核",
@@ -768,11 +778,12 @@
     "confirmSuccess": "账号合并已完成",
     "confirmError": "确认合并失败"
   },
-  "namespace": {
-    "notFound": "命名空间不存在",
+  "repository": {
+    "notFound": "技能仓库不存在",
     "skillList": "技能列表",
+    "skillListSubtitle": "浏览该仓库下的公开技能",
     "emptyTitle": "暂无技能",
-    "emptyDescription": "该命名空间下还没有发布任何技能"
+    "emptyDescription": "该仓库下还没有发布任何技能"
   },
   "skillDetail": {
     "back": "返回上一页",
@@ -807,7 +818,7 @@
     "downloads": "下载量",
     "rating": "评分",
     "ratingNone": "暂无",
-    "namespaceLabel": "命名空间",
+    "repositoryLabel": "技能仓库",
     "loginToRate": "登录后可以收藏和评分",
     "install": "安装",
     "installMethodClawhub": "ClawHub CLI",
@@ -1184,11 +1195,14 @@
   },
   "upload": {
     "dropHint": "放开以上传文件...",
-    "dragHint": "拖拽 ZIP 文件到此处，或点击选择",
-    "formatHint": "仅支持 .zip 格式"
+    "dragHint": "拖拽压缩包到此处，或点击选择",
+    "dragHintMultiple": "拖拽多个压缩包到此处，或点击选择",
+    "formatHint": "支持 .zip、.tar、.tar.gz、.tgz、.gz",
+    "formatHintMultiple": "支持 .zip、.tar、.tar.gz、.tgz、.gz，单次最多 {{max}} 个",
+    "unsupportedFormat": "不支持的压缩包格式"
   },
   "layout": {
-    "footerDescription": "技能注册中心，为开发者提供高效的技能管理和分发平台。"
+    "footerDescription": "Joycastle 内部 AI 技能平台。"
   },
   "nsReviews": {
     "title": "命名空间审核",
@@ -1296,7 +1310,6 @@
     "menu": {
       "dashboard": "控制台",
       "mySkills": "我的技能",
-      "myNamespaces": "我的命名空间",
       "governance": "治理中心",
       "stars": "我的收藏",
       "subscriptions": "我的订阅",
@@ -1320,34 +1333,39 @@
     "community": "社区",
     "privacy": "隐私政策",
     "terms": "服务条款",
-    "copyright": "© 2026 SkillHub. 保留所有权利。"
+    "copyright": "© 2026 Joycastle. 保留所有权利。"
   },
   "publish": {
     "title": "发布技能",
-    "subtitle": "上传技能包到 SkillHub",
-    "reviewNotice": {
-      "title": "发布审核说明",
-      "description": "技能包提交后需要经过管理员审核才能正式发布。"
-    },
-    "namespace": "命名空间",
-    "selectNamespace": "选择命名空间",
+    "subtitle": "上传技能包到 JoyHub",
+    "repository": "技能仓库",
+    "selectRepository": "选择技能仓库",
     "visibility": "可见性",
     "visibilityOptions": {
-      "public": "公开",
-      "namespaceOnly": "仅命名空间",
-      "loggedInUsersOnly": "仅登录用户可见",
-      "private": "私有"
+      "warehouse": "仓库内成员",
+      "private": "私人",
+      "public": "仓库内成员",
+      "namespaceOnly": "仓库内成员",
+      "loggedInUsersOnly": "仓库内成员"
     },
     "file": "技能包文件",
+    "filesSelected": "已选择 {{count}} 个文件",
     "removeSelectedFile": "删除已选文件",
+    "removeFile": "移除",
+    "clearAllFiles": "清空列表",
     "publishing": "发布中...",
+    "publishingBatch": "批量发布中 ({{current}}/{{total}})...",
     "confirm": "确认发布",
-    "success": "发布成功",
-    "successDescription": "{{skill}} 已提交审核，等待管理员批准后即可使用",
+    "confirmBatch": "批量发布 ({{count}})",
     "publishedTitle": "发布成功",
     "publishedDescription": "{{skill}} 已发布，现在可以下载使用",
-    "pendingReviewTitle": "已提交审核",
-    "pendingReviewDescription": "{{skill}} 已提交审核，等待管理员批准后即可使用",
+    "batchPublishedTitle": "批量发布完成",
+    "batchPublishedDescription": "成功 {{succeeded}} 个，失败 {{failed}} 个",
+    "batchPartialTitle": "部分发布成功",
+    "batchAllFailedTitle": "批量发布失败",
+    "batchResultSuccess": "成功",
+    "batchResultFailed": "失败",
+    "batchResultNeedsConfirm": "待确认",
     "error": "发布失败",
     "timeoutTitle": "发布请求超时",
     "timeoutDescription": "本次发布等待时间过长，请稍后到技能列表确认结果，或重新尝试发布。",
@@ -1361,7 +1379,8 @@
     "warningConfirmCancel": "返回修改",
     "frontmatterFailedTitle": "SKILL.md 格式有误",
     "frontmatterFailedDescription": "请检查 SKILL.md 顶部 frontmatter 的 YAML 格式。若字段值中包含冒号，请用引号包裹。",
-    "selectRequired": "请选择命名空间和文件"
+    "selectRequired": "请选择技能仓库和文件",
+    "batchTooMany": "单次最多上传 {{max}} 个技能包"
   },
   "toast": {
     "success": "成功",

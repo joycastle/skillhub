@@ -19,14 +19,27 @@ spring:
     oauth2:
       client:
         registration:
-          github:
-            client-id: ${OAUTH2_GITHUB_CLIENT_ID:local-placeholder}
-            client-secret: ${OAUTH2_GITHUB_CLIENT_SECRET:local-placeholder}
+          feishu:
+            client-id: ${OAUTH2_FEISHU_CLIENT_ID:local-placeholder}
+            client-secret: ${OAUTH2_FEISHU_CLIENT_SECRET:local-placeholder}
+            redirect-uri: "${SKILLHUB_WEB_BASE_URL:http://localhost:3000}/login/oauth2/code/{registrationId}"
 
 skillhub:
   auth:
+    api-tokens:
+      enabled: false
     mock:
       enabled: true
+    web-base-url: ${SKILLHUB_WEB_BASE_URL:http://localhost:3000}
+  publish:
+    auto-publish: true
+    max-single-file-size: 52428800 # 50MB for local OpenClaw-style bundles
+  governance:
+    enabled: false
+  profile:
+    moderation:
+      machine-review: false
+      human-review: false
   ratelimit:
     download:
       anonymous-cookie-secret: ${SKILLHUB_DOWNLOAD_ANON_COOKIE_SECRET:local-dev-download-secret-32-bytes}
@@ -47,10 +60,6 @@ skillhub:
   bootstrap:
     admin:
       enabled: ${BOOTSTRAP_ADMIN_ENABLED:true}
-  profile:
-    moderation:
-      machine-review: ${SKILLHUB_PROFILE_MACHINE_REVIEW_ENABLED:true}
-      human-review: ${SKILLHUB_PROFILE_HUMAN_REVIEW_ENABLED:true}
 
 logging:
   level:

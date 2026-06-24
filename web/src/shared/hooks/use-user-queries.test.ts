@@ -13,6 +13,6 @@ describe('use-user-queries exports', () => {
     expect(typeof mod.useMySkills).toBe('function')
     expect(typeof mod.useMyStars).toBe('function')
     expect(typeof mod.useMyStarsPage).toBe('function')
-    expect(typeof mod.useSubmitPromotion).toBe('function')
+    expect(typeof mod.useMySubscriptions).toBe('function')
   })
 })

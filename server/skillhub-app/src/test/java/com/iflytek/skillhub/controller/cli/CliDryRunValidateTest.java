@@ -74,7 +74,7 @@ class CliDryRunValidateTest {
         given(cliSkillAppService.validatePublish(
                 eq("global"), any(), eq("user-1"), eq(SkillVisibility.PUBLIC), eq(Set.of("USER"))))
                 .willReturn(new CliDryRunResponse(
-                        false, List.of("Missing required file: SKILL.md at root"), List.of(),
+                        false, List.of("Missing required file: SKILL.md"), List.of(),
                         null, null));
 
         MockMultipartFile file = new MockMultipartFile("file", "skill.zip",
@@ -85,7 +85,7 @@ class CliDryRunValidateTest {
                         .header("Authorization", "Bearer test-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.valid").value(false))
-                .andExpect(jsonPath("$.data.errors[0]").value("Missing required file: SKILL.md at root"))
+                .andExpect(jsonPath("$.data.errors[0]").value("Missing required file: SKILL.md"))
                 .andExpect(jsonPath("$.data.resolvedSlug").doesNotExist());
     }
 

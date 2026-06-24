@@ -16,17 +16,11 @@ vi.mock('react-i18next', async () => {
 })
 
 vi.mock('lucide-react', () => ({
-  PackageOpen: () => null,
-  Terminal: () => null,
-  Shield: () => null,
-  Users: () => null,
-  GitBranch: () => null,
   Search: () => null,
-  Settings: () => null,
 }))
 
-vi.mock('@/shared/components/landing-quick-start', () => ({
-  LandingQuickStartSection: () => null,
+vi.mock('@/shared/components/brand-mark', () => ({
+  BrandMark: () => null,
 }))
 
 vi.mock('@/features/skill/skill-card', () => ({
@@ -67,7 +61,7 @@ describe('LandingPage', () => {
   it('renders the brand name in the hero section', () => {
     const html = renderToStaticMarkup(<LandingPage />)
 
-    expect(html).toContain('SkillHub')
-    expect(html).toContain('landing.hero.title')
+    expect(html).toContain('brand.name')
+    expect(html).toContain('brand.tagline')
   })
 })

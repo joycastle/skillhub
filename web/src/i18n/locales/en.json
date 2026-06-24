@@ -1,4 +1,8 @@
 {
+  "brand": {
+    "name": "JoyHub",
+    "tagline": "Discover and share AI skills with everyone"
+  },
   "nav": {
     "landing": "Home",
     "home": "Skill Center",
@@ -146,7 +150,13 @@
     "popularDescription": "Most popular skills in the community",
     "latestTitle": "Latest Releases",
     "latestDescription": "Freshly published skills",
-    "viewAll": "View All →",
+    "viewAll": "View all",
+    "showcase": {
+      "badge": "Skill Gallery",
+      "title": "Discover AI skills your team can use",
+      "emptyTitle": "No public skills yet",
+      "emptyDescription": "Be the first to publish skills for weekly reports, code review, data analysis, and more."
+    },
     "quickStart": {
       "title": "Quick Start",
       "subtitle": "快速开始",
@@ -341,11 +351,11 @@
     "title": "My Skills",
     "subtitle": "Manage your published skills",
     "searchPlaceholder": "Search by name, slug, or description",
-    "namespaceFilterLabel": "Filter by namespace",
-    "namespaceFilterAll": "All namespaces",
+    "repositoryFilterLabel": "Filter by repository",
+    "repositoryFilterAll": "All repositories",
     "clearSearch": "Clear filters",
     "emptySearchTitle": "No matching skills",
-    "emptySearchDescription": "Try adjusting your keyword or switching namespace.",
+    "emptySearchDescription": "Try a different keyword or switch repository",
     "filters": {
       "ALL": "All",
       "PENDING_REVIEW": "Pending Review",
@@ -768,11 +778,12 @@
     "confirmSuccess": "Account merge completed",
     "confirmError": "Merge confirmation failed"
   },
-  "namespace": {
-    "notFound": "Namespace not found",
+  "repository": {
+    "notFound": "Repository not found",
     "skillList": "Skills",
+    "skillListSubtitle": "Browse public skills in this repository",
     "emptyTitle": "No skills",
-    "emptyDescription": "No skills have been published in this namespace yet"
+    "emptyDescription": "No skills have been published in this repository yet"
   },
   "skillDetail": {
     "back": "Back",
@@ -807,7 +818,7 @@
     "downloads": "Downloads",
     "rating": "Rating",
     "ratingNone": "None",
-    "namespaceLabel": "Namespace",
+    "repositoryLabel": "Repository",
     "loginToRate": "Login to star and rate",
     "install": "Install",
     "installMethodClawhub": "ClawHub CLI",
@@ -1183,11 +1194,14 @@
   },
   "upload": {
     "dropHint": "Drop to upload...",
-    "dragHint": "Drag a ZIP file here, or click to select",
-    "formatHint": "Only .zip format supported"
+    "dragHint": "Drag an archive here, or click to select",
+    "dragHintMultiple": "Drag multiple archives here, or click to select",
+    "formatHint": "Supports .zip, .tar, .tar.gz, .tgz, .gz",
+    "formatHintMultiple": "Supports .zip, .tar, .tar.gz, .tgz, .gz — up to {{max}} files per batch",
+    "unsupportedFormat": "Unsupported archive format"
   },
   "layout": {
-    "footerDescription": "Skill registry, providing efficient skill management and distribution for developers."
+    "footerDescription": "Joycastle internal AI skill platform for discovering and sharing AI skills."
   },
   "nsReviews": {
     "title": "Namespace Reviews",
@@ -1295,7 +1309,6 @@
     "menu": {
       "dashboard": "Dashboard",
       "mySkills": "My Skills",
-      "myNamespaces": "My Namespaces",
       "governance": "Governance Center",
       "stars": "Starred",
       "subscriptions": "My Subscriptions",
@@ -1319,34 +1332,39 @@
     "community": "Community",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
-    "copyright": "© 2026 SkillHub. All rights reserved."
+    "copyright": "© 2026 Joycastle. All rights reserved."
   },
   "publish": {
     "title": "Publish Skill",
-    "subtitle": "Upload skill package to SkillHub",
-    "reviewNotice": {
-      "title": "Review Notice",
-      "description": "Submitted skill packages require admin review before publication."
-    },
-    "namespace": "Namespace",
-    "selectNamespace": "Select namespace",
+    "subtitle": "Upload a skill package to JoyHub",
+    "repository": "Skill Repository",
+    "selectRepository": "Select repository",
     "visibility": "Visibility",
     "visibilityOptions": {
-      "public": "Public",
-      "namespaceOnly": "Namespace Only",
-      "loggedInUsersOnly": "Logged-in Users Only",
-      "private": "Private"
+      "warehouse": "Repository members",
+      "private": "Private",
+      "public": "Repository members",
+      "namespaceOnly": "Repository members",
+      "loggedInUsersOnly": "Repository members"
     },
     "file": "Skill Package File",
+    "filesSelected": "{{count}} file(s) selected",
     "removeSelectedFile": "Remove selected file",
+    "removeFile": "Remove",
+    "clearAllFiles": "Clear all",
     "publishing": "Publishing...",
+    "publishingBatch": "Batch publishing ({{current}}/{{total}})...",
     "confirm": "Confirm Publish",
-    "success": "Published Successfully",
-    "successDescription": "{{skill}} has been submitted for review and will be available after admin approval",
+    "confirmBatch": "Publish batch ({{count}})",
     "publishedTitle": "Published Successfully",
     "publishedDescription": "{{skill}} is now live and available for download",
-    "pendingReviewTitle": "Submitted for Review",
-    "pendingReviewDescription": "{{skill}} has been submitted for review and will be available after admin approval",
+    "batchPublishedTitle": "Batch publish completed",
+    "batchPublishedDescription": "{{succeeded}} succeeded, {{failed}} failed",
+    "batchPartialTitle": "Partially published",
+    "batchAllFailedTitle": "Batch publish failed",
+    "batchResultSuccess": "Success",
+    "batchResultFailed": "Failed",
+    "batchResultNeedsConfirm": "Needs confirmation",
     "error": "Publish Failed",
     "timeoutTitle": "Publish timed out",
     "timeoutDescription": "The publish request took too long. Please check the skill list later or try again.",
@@ -1360,7 +1378,8 @@
     "warningConfirmCancel": "Go back and fix",
     "frontmatterFailedTitle": "SKILL.md format is invalid",
     "frontmatterFailedDescription": "Please check the YAML frontmatter at the top of SKILL.md. If a field value contains a colon, wrap it in quotes.",
-    "selectRequired": "Please select namespace and file"
+    "selectRequired": "Please select a repository and at least one file",
+    "batchTooMany": "You can upload at most {{max}} packages per batch"
   },
   "toast": {
     "success": "Success",

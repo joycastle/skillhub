@@ -99,7 +99,10 @@ class SkillPublishServiceTest {
                 securityScanService,
                 compensationService,
                 eventPublisher,
-                CLOCK
+                CLOCK,
+                false,
+                false,
+                "global"
         );
         lenient().when(securityScanService.isEnabled()).thenReturn(true);
         lenient().when(skillVersionRepository.findBySkillIdAndStatus(anyLong(), eq(SkillVersionStatus.PENDING_REVIEW)))

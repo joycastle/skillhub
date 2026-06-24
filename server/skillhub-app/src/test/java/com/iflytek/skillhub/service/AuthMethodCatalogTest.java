@@ -1,125 +1,50 @@
 package com.iflytek.skillhub.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
-import com.iflytek.skillhub.auth.bootstrap.PassiveSessionAuthenticator;
-import com.iflytek.skillhub.auth.direct.DirectAuthProvider;
-import com.iflytek.skillhub.auth.direct.DirectAuthRequest;
-import com.iflytek.skillhub.auth.rbac.PlatformPrincipal;
-import com.iflytek.skillhub.config.AuthSessionBootstrapProperties;
-import com.iflytek.skillhub.config.DirectAuthProperties;
-import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.security.oauth2.client.OAuth2ClientProperties;
 
 class AuthMethodCatalogTest {
 
     @Test
-    void listMethodsShouldUseProviderDisplayNamesForCompatibleAuthMethods() {
+    void listMethodsShouldExposeOnlyFeishuOAuth() {
         OAuth2ClientProperties oauthProperties = new OAuth2ClientProperties();
-        DirectAuthProperties directAuthProperties = new DirectAuthProperties();
-        directAuthProperties.setEnabled(true);
-        AuthSessionBootstrapProperties bootstrapProperties = new AuthSessionBootstrapProperties();
-        bootstrapProperties.setEnabled(true);
+        OAuth2ClientProperties.Registration feishu = new OAuth2ClientProperties.Registration();
+        feishu.setClientName("飞书");
+        oauthProperties.getRegistration().put("feishu", feishu);
+        oauthProperties.getRegistration().put("github", new OAuth2ClientProperties.Registration());
 
-        DirectAuthProvider directProvider = new DirectAuthProvider() {
-            @Override
-            public String providerCode() {
-                return "private-sso";
-            }
+        AuthMethodCatalog catalog = new AuthMethodCatalog(oauthProperties);
 
-            @Override
-            public String displayName() {
-                return "Enterprise Password";
-            }
-
-            @Override
-            public PlatformPrincipal authenticate(DirectAuthRequest request) {
-                throw new UnsupportedOperationException("not used in catalog test");
-            }
-        };
-
-        PassiveSessionAuthenticator bootstrapProvider = new PassiveSessionAuthenticator() {
-            @Override
-            public String providerCode() {
-                return "private-sso";
-            }
-
-            @Override
-            public String displayName() {
-                return "Enterprise SSO";
-            }
-
-            @Override
-            public Optional<PlatformPrincipal> authenticate(jakarta.servlet.http.HttpServletRequest request) {
-                return Optional.empty();
-            }
-        };
-
-        AuthMethodCatalog catalog = new AuthMethodCatalog(
-            oauthProperties,
-            directAuthProperties,
-            bootstrapProperties,
-            List.of(directProvider),
-            List.of(bootstrapProvider)
-        );
-
-        assertThat(catalog.listMethods(null))
-            .extracting(method -> method.id() + ":" + method.displayName())
-            .contains(
-                "local-password:Local Account",
-                "direct-private-sso:Enterprise Password",
-                "bootstrap-private-sso:Enterprise SSO"
-            );
+        assertThat(catalog.listMethods("/dashboard"))
+            .hasSize(1)
+            .first()
+            .satisfies(method -> {
+                assertThat(method.id()).isEqualTo("oauth-feishu");
+                assertThat(method.methodType()).isEqualTo("OAUTH_REDIRECT");
+                assertThat(method.provider()).isEqualTo("feishu");
+                assertThat(method.displayName()).isEqualTo("飞书");
+                assertThat(method.actionUrl()).isEqualTo("/oauth2/authorization/feishu?returnTo=%2Fdashboard");
+            });
     }
 
     @Test
-    void listMethodsShouldFallBackToProviderCodeWhenDisplayNameIsNotOverridden() {
+    void listOAuthProvidersShouldExposeOnlyFeishu() {
         OAuth2ClientProperties oauthProperties = new OAuth2ClientProperties();
-        DirectAuthProperties directAuthProperties = new DirectAuthProperties();
-        directAuthProperties.setEnabled(true);
-        AuthSessionBootstrapProperties bootstrapProperties = new AuthSessionBootstrapProperties();
-        bootstrapProperties.setEnabled(true);
+        OAuth2ClientProperties.Registration feishu = new OAuth2ClientProperties.Registration();
+        feishu.setClientName("飞书");
+        oauthProperties.getRegistration().put("feishu", feishu);
 
-        DirectAuthProvider directProvider = new DirectAuthProvider() {
-            @Override
-            public String providerCode() {
-                return "private-sso";
-            }
+        AuthMethodCatalog catalog = new AuthMethodCatalog(oauthProperties);
 
-            @Override
-            public PlatformPrincipal authenticate(DirectAuthRequest request) {
-                return mock(PlatformPrincipal.class);
-            }
-        };
-
-        PassiveSessionAuthenticator bootstrapProvider = new PassiveSessionAuthenticator() {
-            @Override
-            public String providerCode() {
-                return "private-sso";
-            }
-
-            @Override
-            public Optional<PlatformPrincipal> authenticate(jakarta.servlet.http.HttpServletRequest request) {
-                return Optional.empty();
-            }
-        };
-
-        AuthMethodCatalog catalog = new AuthMethodCatalog(
-            oauthProperties,
-            directAuthProperties,
-            bootstrapProperties,
-            List.of(directProvider),
-            List.of(bootstrapProvider)
-        );
-
-        assertThat(catalog.listMethods(null))
-            .extracting(method -> method.id() + ":" + method.displayName())
-            .contains(
-                "direct-private-sso:private-sso",
-                "bootstrap-private-sso:private-sso"
-            );
+        assertThat(catalog.listOAuthProviders(null))
+            .hasSize(1)
+            .first()
+            .satisfies(provider -> {
+                assertThat(provider.id()).isEqualTo("feishu");
+                assertThat(provider.name()).isEqualTo("飞书");
+                assertThat(provider.authorizationUrl()).isEqualTo("/oauth2/authorization/feishu");
+            });
     }
 }

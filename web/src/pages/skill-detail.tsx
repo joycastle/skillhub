@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, useRouterState, useSearch } from '@tanstack/react-router'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowUpCircle, ChevronDown, ChevronUp, Clock, Folder, Globe, Lock, RefreshCw, ShieldCheck, Terminal, User, Users } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, ChevronDown, ChevronUp, Folder, Globe, Lock, RefreshCw, Terminal, User } from 'lucide-react'
 import { MarkdownRenderer } from '@/features/skill/markdown-renderer'
 import { resolvePackageRelativeLink } from '@/features/skill/package-relative-link'
 import { FileTree } from '@/features/skill/file-tree'
@@ -25,23 +25,24 @@ import { RatingInput } from '@/features/social/rating-input'
 import { StarButton } from '@/features/social/star-button'
 import { SubscribeButton } from '@/features/social/subscribe-button'
 import { useAuth } from '@/features/auth/use-auth'
-import { adminApi, ApiError, buildApiUrl, WEB_API_PREFIX } from '@/api/client'
-import { useSubmitSkillReport } from '@/features/report/use-skill-reports'
+import { ApiError, buildApiUrl, WEB_API_PREFIX } from '@/api/client'
 import { SecurityAuditSummary } from '@/features/security-audit/security-audit-summary'
-import { formatLocalDateTime } from '@/shared/lib/date-time'
+import { normalizeVersionStatusForDisplay } from '@/shared/lib/version-status-display'
 import { incrementSkillDownloadCount } from '@/shared/lib/skill-download-cache'
 import { getSkillSquareSearch, normalizeSkillDetailReturnTo } from '@/shared/lib/skill-navigation'
 import { formatCompactCount } from '@/shared/lib/number-format'
+import { formatLocalDateTime } from '@/shared/lib/date-time'
 import { resolveDocumentationFilePath } from '@/shared/lib/skill-documentation'
-import { getHeadlineVersion, getOwnerPreviewVersion, getPublishedVersion } from '@/shared/lib/skill-lifecycle'
+import { getHeadlineVersion, getPublishedVersion } from '@/shared/lib/skill-lifecycle'
 import { NamespaceBadge } from '@/shared/components/namespace-badge'
+import { useSkillRepositories } from '@/shared/hooks/use-skill-repositories'
+import { resolveRepositoryDisplayName } from '@/shared/lib/repository-display'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/tabs'
 import { Button } from '@/shared/ui/button'
 import { Card } from '@/shared/ui/card'
 import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog'
 import { Input } from '@/shared/ui/input'
-import { Textarea } from '@/shared/ui/textarea'
 import { toast } from '@/shared/lib/toast'
 import { cn } from '@/shared/lib/utils'
 import {
@@ -57,16 +58,14 @@ import {
   useRereleaseSkillVersion,
   useUnarchiveSkill,
   useWithdrawSkillReview,
-  useSubmitForReview,
   useConfirmPublish,
 } from '@/shared/hooks/use-skill-queries'
-import { useSubmitPromotion } from '@/shared/hooks/use-user-queries'
 
 /**
  * Detail page for one skill and its version history.
  *
  * This page coordinates documentation rendering, file browsing, downloads, lifecycle actions,
- * promotion/report dialogs, and social interactions for the selected skill.
+ * and social interactions for the selected skill.
  */
 function suggestNextVersion(version: string) {
   const semverMatch = version.match(/^(\d+)\.(\d+)\.(\d+)$/)
@@ -103,29 +102,14 @@ function createPackageFilePreviewNode(file: SkillFile): FileTreeNode {
   }
 }
 
-function getPromotionConflictKey(error: ApiError): 'promotion.duplicate_pending' | 'promotion.already_promoted' | null {
-  if (error.serverMessageKey === 'promotion.duplicate_pending') {
-    return 'promotion.duplicate_pending'
-  }
-  if (error.serverMessageKey === 'promotion.already_promoted') {
-    return 'promotion.already_promoted'
-  }
-  return null
-}
-
 export function SkillDetailPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const location = useRouterState({ select: (s) => s.location })
   const search = useSearch({ from: '/space/$namespace/$slug' })
   const queryClient = useQueryClient()
-  const [reportDialogOpen, setReportDialogOpen] = useState(false)
-  const [reportReason, setReportReason] = useState('')
-  const [reportDetails, setReportDetails] = useState('')
-  const [hasReported, setHasReported] = useState(false)
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
   const [unarchiveConfirmOpen, setUnarchiveConfirmOpen] = useState(false)
-  const [promotionConfirmOpen, setPromotionConfirmOpen] = useState(false)
   const [deleteSkillConfirmOpen, setDeleteSkillConfirmOpen] = useState(false)
   const [deleteSkillInputOpen, setDeleteSkillInputOpen] = useState(false)
   const [deleteSkillInput, setDeleteSkillInput] = useState('')
@@ -138,7 +122,6 @@ export function SkillDetailPage() {
   const [rereleaseWarningDialogOpen, setRereleaseWarningDialogOpen] = useState(false)
   const [diffSourceVersion, setDiffSourceVersion] = useState<string | null>(null)
   const [confirmPublishTarget, setConfirmPublishTarget] = useState<string | null>(null)
-  const [submitReviewTarget, setSubmitReviewTarget] = useState<string | null>(null)
   const [diffCompareVersion, setDiffCompareVersion] = useState<string | null>(null)
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(false)
   const [isOverviewCollapsible, setIsOverviewCollapsible] = useState(false)
@@ -151,6 +134,7 @@ export function SkillDetailPage() {
   const overviewSectionRef = useRef<HTMLDivElement | null>(null)
   const { namespace, slug } = useParams({ from: '/space/$namespace/$slug' })
   const { user, hasRole } = useAuth()
+  const { data: repositories } = useSkillRepositories()
   const detailQueriesEnabled = isSkillDetailQueriesEnabled(skillDeleted)
   const qns = detailQueriesEnabled ? namespace : ''
   const qslug = detailQueriesEnabled ? slug : ''
@@ -159,7 +143,6 @@ export function SkillDetailPage() {
   const { data: versions } = useSkillVersions(qns, qslug, skillReady)
   const headlineVersion = skill ? getHeadlineVersion(skill) : null
   const publishedVersion = skill ? getPublishedVersion(skill) : null
-  const ownerPreviewVersion = skill ? getOwnerPreviewVersion(skill) : null
   const selectedVersion = headlineVersion?.version ?? versions?.[0]?.version
   const selectedVersionEntry = versions?.find((version) => version.version === selectedVersion) ?? versions?.[0]
   const { data: files } = useSkillFiles(qns, qslug, selectedVersion, skillReady)
@@ -180,18 +163,8 @@ export function SkillDetailPage() {
   const diffCompareDocumentationPath = resolveDocumentationFilePath(diffCompareFiles)
   const { data: diffSourceReadme } = useSkillReadme(qns, qslug, diffSourceVersion ?? undefined, diffSourceDocumentationPath, skillReady)
   const { data: diffCompareReadme } = useSkillReadme(qns, qslug, diffCompareVersion ?? undefined, diffCompareDocumentationPath, skillReady)
-  const governanceVisible = hasRole('SKILL_ADMIN') || hasRole('SUPER_ADMIN')
-  const canHideSkill = hasRole('SUPER_ADMIN')
-  const isPendingPreview = skill?.resolutionMode === 'OWNER_PREVIEW' && headlineVersion?.status === 'PENDING_REVIEW'
-  const isRejectedPreview = skill?.resolutionMode === 'OWNER_PREVIEW' && headlineVersion?.status === 'REJECTED'
-  const isReviewFlowPending = skill?.resolutionMode === 'OWNER_PREVIEW'
-    && ['PENDING_REVIEW', 'SCANNING', 'SCAN_FAILED'].includes(headlineVersion?.status ?? '')
-  const hasPendingOwnerPreview = ownerPreviewVersion?.status === 'PENDING_REVIEW'
-  const hasRejectedOwnerPreview = ownerPreviewVersion?.status === 'REJECTED'
-  const hasPublishedPendingReview = Boolean(publishedVersion && hasPendingOwnerPreview)
   const canInteract = skill?.canInteract ?? true
-  const canReport = skill?.canReport ?? true
-  const canHardDeleteSkill = Boolean(skill && user && (skill.ownerId === user.userId || hasRole('SUPER_ADMIN')))
+  const canHardDeleteSkill = Boolean(skill && user && hasRole('SUPER_ADMIN'))
   const canManageLabels = Boolean(skill && user && (skill.canManageLifecycle || hasRole('SUPER_ADMIN')))
   const isVersionDownloadable = selectedVersionEntry?.status === 'PUBLISHED' && (selectedVersionEntry?.downloadAvailable ?? false)
 
@@ -253,37 +226,12 @@ export function SkillDetailPage() {
     })
   }
 
-  const refreshSkill = () => {
-    // Several actions mutate derived lifecycle state; refresh the shared skill detail and common
-    // list caches together to keep the rest of the app consistent.
-    queryClient.invalidateQueries({ queryKey: ['skills', namespace, slug] })
-    queryClient.invalidateQueries({ queryKey: ['skills', namespace, slug, 'versions'] })
-    queryClient.invalidateQueries({ queryKey: ['skills'] })
-  }
-
-  const hideMutation = useMutation({
-    mutationFn: () => adminApi.hideSkill(skill!.id),
-    onSuccess: refreshSkill,
-  })
-
-  const unhideMutation = useMutation({
-    mutationFn: () => adminApi.unhideSkill(skill!.id),
-    onSuccess: refreshSkill,
-  })
-
-  const yankMutation = useMutation({
-    mutationFn: () => adminApi.yankVersion(selectedVersionEntry!.id),
-    onSuccess: refreshSkill,
-  })
   const archiveMutation = useArchiveSkill()
   const unarchiveMutation = useUnarchiveSkill()
   const deleteSkillMutation = useDeleteSkill()
   const deleteVersionMutation = useDeleteSkillVersion()
   const withdrawReviewMutation = useWithdrawSkillReview()
   const rereleaseVersionMutation = useRereleaseSkillVersion()
-  const submitPromotionMutation = useSubmitPromotion()
-  const reportMutation = useSubmitSkillReport(namespace, slug)
-  const submitForReviewMutation = useSubmitForReview()
   const confirmPublishMutation = useConfirmPublish()
 
   const triggerBrowserDownload = (url: string) => {
@@ -345,7 +293,7 @@ export function SkillDetailPage() {
       requireLogin()
       return
     }
-    if (!selectedVersionEntry || isPendingPreview) {
+    if (!selectedVersionEntry) {
       return
     }
 
@@ -373,35 +321,6 @@ export function SkillDetailPage() {
     })
   }
 
-  const handleOpenReport = () => {
-    if (!user) {
-      requireLogin()
-      return
-    }
-    setReportDialogOpen(true)
-  }
-
-  const handleSubmitReport = async () => {
-    if (!reportReason.trim()) {
-      toast.error(t('skillDetail.reportReasonRequired'))
-      return
-    }
-
-    try {
-      await reportMutation.mutateAsync({
-        reason: reportReason.trim(),
-        details: reportDetails.trim() || undefined,
-      })
-      setReportDialogOpen(false)
-      setReportReason('')
-      setReportDetails('')
-      setHasReported(true)
-      toast.success(t('skillDetail.reportSuccessTitle'), t('skillDetail.reportSuccessDescription'))
-    } catch (error) {
-      toast.error(t(resolveSkillActionErrorTitle('report')), error instanceof Error ? error.message : '')
-    }
-  }
-
   const handleBack = () => {
     const returnTo = normalizeSkillDetailReturnTo(search.returnTo)
     if (returnTo) {
@@ -425,6 +344,7 @@ export function SkillDetailPage() {
   }
 
   const resolveVersionStatusLabel = (status?: string) => {
+    const displayStatus = normalizeVersionStatusForDisplay(status)
     const map: Record<string, string> = {
       DRAFT: t('skillDetail.versionStatusDraft'),
       SCANNING: t('skillDetail.versionStatusScanning'),
@@ -435,12 +355,11 @@ export function SkillDetailPage() {
       REJECTED: t('skillDetail.versionStatusRejected'),
       YANKED: t('skillDetail.versionStatusYanked'),
     }
-    return status ? (map[status] ?? status) : ''
+    return displayStatus ? (map[displayStatus] ?? displayStatus) : ''
   }
 
   const canDeleteVersion = (status?: string) => status === 'DRAFT' || status === 'REJECTED' || status === 'SCAN_FAILED' || status === 'UPLOADED'
   const isLastVersion = versions?.length === 1
-  const canWithdrawVersion = (status?: string) => status === 'PENDING_REVIEW'
   const canRereleaseVersion = (status?: string) => status === 'PUBLISHED'
   const isNotFoundError = skillError instanceof ApiError
     ? skillError.status === 400 || skillError.status === 404 || skillError.serverMessageKey === 'skill.not_found'
@@ -596,23 +515,6 @@ export function SkillDetailPage() {
     }
   }
 
-  const handleSubmitForReview = async () => {
-    if (!submitReviewTarget) {
-      return
-    }
-    try {
-      await submitForReviewMutation.mutateAsync({ namespace, slug, version: submitReviewTarget, targetVisibility: 'PUBLIC' })
-      toast.success(
-        t('skillDetail.submitReviewSuccessTitle'),
-        t('skillDetail.submitReviewSuccessDescription', { version: submitReviewTarget }),
-      )
-      setSubmitReviewTarget(null)
-    } catch (error) {
-      toast.error(t('skillDetail.submitReviewErrorTitle'), error instanceof Error ? error.message : '')
-      throw error
-    }
-  }
-
   const handleOpenRerelease = (version: string) => {
     setRereleaseTarget(version)
     setTargetVersionInput(suggestNextVersion(version))
@@ -662,37 +564,6 @@ export function SkillDetailPage() {
       params: { namespace, slug },
       search: { from: version, to: compareVersion },
     })
-  }
-
-  const handleSubmitPromotion = async () => {
-    if (!skill || !publishedVersion) {
-      return
-    }
-    try {
-      await submitPromotionMutation.mutateAsync({
-        sourceSkillId: skill.id,
-        sourceVersionId: publishedVersion.id,
-      })
-      toast.success(
-        t('skillDetail.promotionSuccessTitle'),
-        t('skillDetail.promotionSuccessDescription', { skill: skill.displayName, version: publishedVersion.version }),
-      )
-      setPromotionConfirmOpen(false)
-    } catch (error) {
-      if (error instanceof ApiError) {
-        const conflictKey = getPromotionConflictKey(error)
-        if (conflictKey === 'promotion.duplicate_pending') {
-          toast.error(t('skillDetail.promotionDuplicateTitle'), t('skillDetail.promotionDuplicateDescription'))
-          return
-        }
-        if (conflictKey === 'promotion.already_promoted') {
-          toast.error(t('skillDetail.promotionAlreadyPromotedTitle'), t('skillDetail.promotionAlreadyPromotedDescription'))
-          return
-        }
-      }
-      toast.error(t('skillDetail.promotionErrorTitle'), error instanceof Error ? error.message : '')
-      throw error
-    }
   }
 
   if (isLoadingSkill) {
@@ -763,7 +634,10 @@ export function SkillDetailPage() {
             {t('skillDetail.back')}
           </Button>
           <div className="flex items-center gap-3 mb-1">
-            <NamespaceBadge type="GLOBAL" name={namespace} />
+            <NamespaceBadge
+              type="GLOBAL"
+              name={resolveRepositoryDisplayName(namespace, repositories)}
+            />
             {skill.status && (
               <span className={cn(
                 'badge-soft',
@@ -782,22 +656,10 @@ export function SkillDetailPage() {
                 skill.visibility === 'PRIVATE' && 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
                 skill.visibility === 'NAMESPACE_ONLY' && 'badge-soft-blue',
               )}>
-                {skill.visibility === 'PUBLIC' && <Globe className="h-3 w-3" />}
+                {(skill.visibility === 'PUBLIC' || skill.visibility === 'NAMESPACE_ONLY') && <Globe className="h-3 w-3" />}
                 {skill.visibility === 'PRIVATE' && <Lock className="h-3 w-3" />}
-                {skill.visibility === 'NAMESPACE_ONLY' && <Users className="h-3 w-3" />}
-                {skill.visibility === 'PUBLIC' && t('publish.visibilityOptions.public')}
+                {(skill.visibility === 'PUBLIC' || skill.visibility === 'NAMESPACE_ONLY') && t('publish.visibilityOptions.warehouse')}
                 {skill.visibility === 'PRIVATE' && t('publish.visibilityOptions.private')}
-                {skill.visibility === 'NAMESPACE_ONLY' && t('publish.visibilityOptions.namespaceOnly')}
-              </span>
-            )}
-            {isReviewFlowPending && (
-              <span className="badge-soft" style={{ background: '#fef3c7', color: '#92400e' }}>
-                {t('skillDetail.versionStatusPendingReview')}
-              </span>
-            )}
-            {!isPendingPreview && (isRejectedPreview || hasRejectedOwnerPreview) && skill.canManageLifecycle && (
-              <span className="badge-soft" style={{ background: '#fee2e2', color: '#991b1b' }}>
-                {t('skillDetail.rejectedBadge')}
               </span>
             )}
           </div>
@@ -831,26 +693,6 @@ export function SkillDetailPage() {
                 </span>
               ))}
             </div>
-          )}
-          {isPendingPreview && (
-            <Card className="border-amber-500/30 bg-amber-500/5 p-4 text-sm text-muted-foreground">
-              <div className="font-medium text-foreground">{t('skillDetail.pendingPreviewTitle')}</div>
-              <p className="mt-1">{t('skillDetail.pendingPreviewDescription')}</p>
-            </Card>
-          )}
-          {hasRejectedOwnerPreview && (
-            <Card className="border-red-500/30 bg-red-500/5 p-4 text-sm text-muted-foreground">
-              <div className="font-medium text-foreground">{t('skillDetail.rejectedFeedbackTitle')}</div>
-              <p className="mt-1">{t('skillDetail.rejectedPreviewDescription')}</p>
-              <div className="mt-3 rounded-xl border border-red-500/20 bg-background/80 p-3">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  {t('skillDetail.rejectedFeedbackLabel')}
-                </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
-                  {skill.ownerPreviewReviewComment || t('skillDetail.rejectedFeedbackFallback')}
-                </p>
-              </div>
-            </Card>
           )}
         </div>
 
@@ -955,9 +797,7 @@ export function SkillDetailPage() {
                           )}
                           {headlineVersion?.version === version.version && (
                             <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs text-primary-foreground">
-                              {t(hasPublishedPendingReview && publishedVersion?.version === version.version
-                                ? 'skillDetail.currentPublicVersion'
-                                : 'skillDetail.currentVersion')}
+                              {t('skillDetail.currentVersion')}
                             </span>
                           )}
                         </span>
@@ -992,15 +832,6 @@ export function SkillDetailPage() {
                               {t('skillDetail.deleteVersion')}
                             </Button>
                           )}
-                          {skill.canManageLifecycle && canWithdrawVersion(version.status) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setWithdrawVersionTarget(version.version)}
-                            >
-                              {t('skillDetail.withdrawReview')}
-                            </Button>
-                          )}
                           {skill.canManageLifecycle && version.status === 'UPLOADED' && skill.visibility === 'PRIVATE' && (
                             <Button
                               size="sm"
@@ -1008,15 +839,6 @@ export function SkillDetailPage() {
                               onClick={() => setConfirmPublishTarget(version.version)}
                             >
                               {t('skillDetail.confirmPublish')}
-                            </Button>
-                          )}
-                          {skill.canManageLifecycle && version.status === 'UPLOADED' && skill.visibility === 'PRIVATE' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSubmitReviewTarget(version.version)}
-                            >
-                              {t('skillDetail.submitReview')}
                             </Button>
                           )}
                         </div>
@@ -1100,8 +922,11 @@ export function SkillDetailPage() {
           <div className="h-px bg-border/40" />
 
           <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">{t('skillDetail.namespaceLabel')}</div>
-            <NamespaceBadge type="GLOBAL" name={namespace} />
+            <div className="text-sm text-muted-foreground">{t('skillDetail.repositoryLabel')}</div>
+            <NamespaceBadge
+              type="GLOBAL"
+              name={resolveRepositoryDisplayName(namespace, repositories)}
+            />
           </div>
 
           <div className="h-px bg-border/40" />
@@ -1117,19 +942,8 @@ export function SkillDetailPage() {
                     <RatingInput skillId={skill.id} onRequireLogin={requireLogin} />
                   </>
                 ) : null}
-                {canReport ? (
-                  <Button variant="outline" className="w-full" onClick={handleOpenReport} disabled={hasReported || reportMutation.isPending}>
-                    {hasReported ? t('skillDetail.reportedSkill') : reportMutation.isPending ? t('skillDetail.processing') : t('skillDetail.reportSkill')}
-                  </Button>
-                ) : null}
               </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {isRejectedPreview
-                  ? t('skillDetail.rejectedPreviewInteractionHint')
-                  : t('skillDetail.pendingPreviewInteractionHint')}
-              </p>
-            )}
+            ) : null}
             {!user && canInteract && (
               <p className="text-xs text-muted-foreground">{t('skillDetail.loginToRate')}</p>
             )}
@@ -1150,48 +964,6 @@ export function SkillDetailPage() {
               slug={slug}
               version={publishedVersion.version}
             />
-          </Card>
-        )}
-
-        {hasPublishedPendingReview && ownerPreviewVersion && (
-          <Card className="border-amber-500/30 bg-amber-500/5 p-5 space-y-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-600" />
-                <span className="text-sm font-semibold font-heading text-foreground">{t('skillDetail.pendingReviewSectionTitle')}</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {t('skillDetail.pendingReviewSectionDescription', {
-                  pendingVersion: ownerPreviewVersion.version,
-                  publishedVersion: publishedVersion?.version ?? '',
-                })}
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-amber-500/20 bg-background/70 p-3">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  {t('skillDetail.pendingReviewVersionLabel')}
-                </div>
-                <div className="mt-2 break-all font-mono text-sm font-semibold leading-snug text-foreground">
-                  v{ownerPreviewVersion.version}
-                </div>
-              </div>
-              <div className="rounded-xl border border-amber-500/20 bg-background/70 p-3">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  {t('skillDetail.pendingReviewStatusLabel')}
-                </div>
-                <div className="mt-2 text-sm font-semibold text-amber-700">
-                  {t('skillDetail.pendingReviewStatusValue')}
-                </div>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => setWithdrawVersionTarget(ownerPreviewVersion.version)}
-              disabled={withdrawReviewMutation.isPending}
-            >
-              {withdrawReviewMutation.isPending ? t('skillDetail.processing') : t('skillDetail.withdrawReview')}
-            </Button>
           </Card>
         )}
 
@@ -1251,9 +1023,7 @@ export function SkillDetailPage() {
                   {t('skillDetail.lifecyclePendingVersionLabel')}
                 </div>
                 <div className="mt-2 text-sm font-semibold text-foreground">
-                  {hasPendingOwnerPreview && ownerPreviewVersion
-                    ? t('skillDetail.lifecyclePendingVersionValue', { version: ownerPreviewVersion.version })
-                    : t('skillDetail.lifecycleNoPendingVersion')}
+                  {t('skillDetail.lifecycleNoPendingVersion')}
                 </div>
               </div>
               <div className="rounded-xl border border-border/60 bg-secondary/20 p-3">
@@ -1287,92 +1057,7 @@ export function SkillDetailPage() {
             </div>
           </Card>
         )}
-
-        {skill.canSubmitPromotion && publishedVersion && (
-          <Card className="p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <ArrowUpCircle className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-semibold font-heading text-foreground">{t('skillDetail.promotionSectionTitle')}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {t('skillDetail.promotionSectionDescription', { version: publishedVersion.version })}
-            </p>
-            <Button variant="outline" onClick={() => setPromotionConfirmOpen(true)} disabled={submitPromotionMutation.isPending}>
-              {submitPromotionMutation.isPending ? t('skillDetail.processing') : t('skillDetail.promoteToGlobal')}
-            </Button>
-          </Card>
-        )}
-
-        {governanceVisible && (
-          <Card className="p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-semibold font-heading text-foreground">{t('skillDetail.governance')}</span>
-            </div>
-            <div className="flex flex-col gap-3">
-              {canHideSkill ? (
-                !skill.hidden ? (
-                  <Button variant="outline" onClick={() => hideMutation.mutate()} disabled={hideMutation.isPending}>
-                    {hideMutation.isPending ? t('skillDetail.processing') : t('skillDetail.hideSkill')}
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => unhideMutation.mutate()} disabled={unhideMutation.isPending}>
-                    {unhideMutation.isPending ? t('skillDetail.processing') : t('skillDetail.unhideSkill')}
-                  </Button>
-                )
-              ) : null}
-              {selectedVersionEntry && (
-                <Button variant="destructive" onClick={() => yankMutation.mutate()} disabled={yankMutation.isPending}>
-                  {yankMutation.isPending ? t('skillDetail.processing') : t('skillDetail.yankVersion')}
-                </Button>
-              )}
-            </div>
-          </Card>
-        )}
       </aside>
-
-      <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('skillDetail.reportDialogTitle')}</DialogTitle>
-            <DialogDescription>{t('skillDetail.reportDialogDescription')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Input
-              value={reportReason}
-              onChange={(event) => setReportReason(event.target.value)}
-              placeholder={t('skillDetail.reportReasonPlaceholder')}
-              maxLength={200}
-            />
-            <Textarea
-              value={reportDetails}
-              onChange={(event) => setReportDetails(event.target.value)}
-              placeholder={t('skillDetail.reportDetailsPlaceholder')}
-              rows={5}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReportDialogOpen(false)}>
-              {t('dialog.cancel')}
-            </Button>
-            <Button onClick={handleSubmitReport} disabled={reportMutation.isPending}>
-              {reportMutation.isPending ? t('skillDetail.processing') : t('skillDetail.submitReport')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <ConfirmDialog
-        open={promotionConfirmOpen}
-        onOpenChange={setPromotionConfirmOpen}
-        title={t('skillDetail.promotionConfirmTitle')}
-        description={t('skillDetail.promotionConfirmDescription', {
-          skill: skill.displayName,
-          version: publishedVersion?.version ?? '',
-        })}
-        confirmText={t('skillDetail.promoteToGlobal')}
-        onConfirm={handleSubmitPromotion}
-      />
 
       <ConfirmDialog
         open={archiveConfirmOpen}
@@ -1541,19 +1226,6 @@ export function SkillDetailPage() {
         description={confirmPublishTarget ? t('skillDetail.confirmPublishDialogDescription', { version: confirmPublishTarget }) : ''}
         confirmText={t('skillDetail.confirmPublish')}
         onConfirm={handleConfirmPublish}
-      />
-
-      <ConfirmDialog
-        open={!!submitReviewTarget}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSubmitReviewTarget(null)
-          }
-        }}
-        title={t('skillDetail.submitReviewDialogTitle')}
-        description={submitReviewTarget ? t('skillDetail.submitReviewDialogDescription', { version: submitReviewTarget }) : ''}
-        confirmText={t('skillDetail.submitReview')}
-        onConfirm={handleSubmitForReview}
       />
 
       <Dialog

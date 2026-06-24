@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Trash2 } from 'lucide-react'
@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/use-auth'
 import { resolveNotificationDisplay } from '@/features/notification/notification-content'
 import { getNotificationItems, getNotificationTotal, shouldShowNotificationPagination } from '@/features/notification/notification-page'
 import { resolveNotificationTarget } from '@/features/notification/notification-target'
+import { isGovernanceEnabled } from '@/shared/config/features'
 import { useDeleteReadNotification, useNotificationList, useMarkAllRead, useMarkRead } from '@/features/notification/use-notifications'
 import { DashboardPageHeader } from '@/shared/components/dashboard-page-header'
 import { Pagination } from '@/shared/components/pagination'
@@ -17,7 +18,14 @@ const PAGE_SIZE = 20
 
 type Category = 'ALL' | 'PUBLISH' | 'REVIEW' | 'PROMOTION' | 'REPORT'
 
-const CATEGORIES: Category[] = ['ALL', 'PUBLISH', 'REVIEW', 'PROMOTION', 'REPORT']
+const ALL_CATEGORIES: Category[] = ['ALL', 'PUBLISH', 'REVIEW', 'PROMOTION', 'REPORT']
+
+function getNotificationCategories(): Category[] {
+  if (isGovernanceEnabled()) {
+    return ALL_CATEGORIES
+  }
+  return ['ALL', 'PUBLISH']
+}
 
 function getCategoryKey(cat: Category): string {
   switch (cat) {
@@ -63,6 +71,14 @@ export function NotificationsPage() {
   const navigate = useNavigate()
   const [page, setPage] = useState(0)
   const [activeCategory, setActiveCategory] = useState<Category>('ALL')
+  const categories = getNotificationCategories()
+
+  useEffect(() => {
+    if (!categories.includes(activeCategory)) {
+      setActiveCategory('ALL')
+      setPage(0)
+    }
+  }, [activeCategory, categories])
 
   const categoryParam = activeCategory === 'ALL' ? undefined : activeCategory
   const { data, isLoading } = useNotificationList(user?.userId, page, PAGE_SIZE, categoryParam)
@@ -110,7 +126,7 @@ export function NotificationsPage() {
 
       {/* Category tabs */}
       <div className="flex gap-1 border-b">
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <button
             key={cat}
             type="button"

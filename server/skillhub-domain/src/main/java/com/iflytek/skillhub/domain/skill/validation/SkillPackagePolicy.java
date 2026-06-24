@@ -42,6 +42,9 @@ public final class SkillPackagePolicy {
         }
 
         String sanitized = rawPath.replace('\\', '/').trim();
+        while (sanitized.startsWith("./")) {
+            sanitized = sanitized.substring(2);
+        }
         if (sanitized.isEmpty()) {
             throw new IllegalArgumentException("Package entry path is empty");
         }
@@ -77,6 +80,26 @@ public final class SkillPackagePolicy {
             return SKILL_MD_PATH;
         }
         return normalizedPath.substring(0, slashIndex + 1) + SKILL_MD_PATH;
+    }
+
+    public static boolean isSkillMdPath(String normalizedPath) {
+        int slashIndex = normalizedPath.lastIndexOf('/');
+        String fileName = slashIndex >= 0 ? normalizedPath.substring(slashIndex + 1) : normalizedPath;
+        return SKILL_MD_PATH.equalsIgnoreCase(fileName);
+    }
+
+    public static java.util.Optional<PackageEntry> findUniqueSkillMd(java.util.List<PackageEntry> entries) {
+        PackageEntry found = null;
+        for (PackageEntry entry : entries) {
+            if (!isSkillMdPath(entry.path())) {
+                continue;
+            }
+            if (found != null) {
+                return java.util.Optional.empty();
+            }
+            found = entry;
+        }
+        return java.util.Optional.ofNullable(found);
     }
 
     public static boolean hasAllowedExtension(String path) {

@@ -84,7 +84,7 @@ describe('publish --dry-run', () => {
       token: 'sk_ok',
       dryRunResponse: {
         valid: false,
-        errors: ['Missing required file: SKILL.md at root'],
+        errors: ['Missing required file: SKILL.md'],
         warnings: [],
         resolvedSlug: null,
         resolvedVersion: null
@@ -100,7 +100,7 @@ describe('publish --dry-run', () => {
 
     expect(result.exitCode).toBe(6)
     expect(result.stdout).toContain('Validation failed')
-    expect(result.stdout).toContain('Missing required file: SKILL.md at root')
+    expect(result.stdout).toContain('Missing required file: SKILL.md')
   })
 
   test('--dry-run does not actually publish', async () => {

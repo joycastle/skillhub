@@ -6,8 +6,15 @@ import com.iflytek.skillhub.domain.skill.validation.SkillPackagePolicy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.apache.commons.compress.archivers.ArchiveEntry;
+import org.apache.commons.compress.archivers.ArchiveInputStream;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.CompressorStreamFactory;
+
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -38,10 +45,28 @@ public class SkillPackageArchiveExtractor {
             );
         }
 
+        String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+        List<PackageEntry> entries;
+        if (filename.endsWith(".zip")) {
+            entries = extractZip(file.getInputStream());
+        } else if (filename.endsWith(".tar")
+                || filename.endsWith(".tar.gz")
+                || filename.endsWith(".tgz")
+                || filename.endsWith(".gz")) {
+            entries = extractTar(file.getBytes(), filename);
+        } else {
+            throw new IllegalArgumentException(
+                    "Unsupported archive format. Use .zip, .tar, .tar.gz, .tgz, or .gz");
+        }
+
+        return stripSingleRootDirectory(entries);
+    }
+
+    private List<PackageEntry> extractZip(InputStream inputStream) throws IOException {
         List<PackageEntry> entries = new ArrayList<>();
         long totalSize = 0;
 
-        try (ZipInputStream zis = new ZipInputStream(file.getInputStream())) {
+        try (ZipInputStream zis = new ZipInputStream(inputStream)) {
             ZipEntry zipEntry;
             while ((zipEntry = zis.getNextEntry()) != null) {
                 if (zipEntry.isDirectory()) {
@@ -61,7 +86,7 @@ public class SkillPackageArchiveExtractor {
                 }
 
                 String normalizedPath = SkillPackagePolicy.normalizeEntryPath(zipEntry.getName());
-                byte[] content = readEntry(zis, normalizedPath);
+                byte[] content = readEntry((InputStream) zis, normalizedPath);
                 totalSize += content.length;
                 if (totalSize > maxTotalPackageSize) {
                     throw new IllegalArgumentException(
@@ -80,12 +105,89 @@ public class SkillPackageArchiveExtractor {
             }
         }
 
-        return stripSingleRootDirectory(entries);
+        return entries;
+    }
+
+    private List<PackageEntry> extractTar(byte[] payload, String filename) throws IOException {
+        if (payload.length > maxTotalPackageSize) {
+            throw new IllegalArgumentException(
+                    "Package too large: " + payload.length + " bytes (max: "
+                            + maxTotalPackageSize + ")"
+            );
+        }
+
+        InputStream source = new ByteArrayInputStream(payload);
+        try {
+            if (filename.endsWith(".gz") || filename.endsWith(".tgz") || filename.endsWith(".tar.gz")) {
+                source = new CompressorStreamFactory().createCompressorInputStream(source);
+            }
+        } catch (org.apache.commons.compress.compressors.CompressorException e) {
+            throw new IOException("Failed to decompress archive", e);
+        }
+
+        List<PackageEntry> entries = new ArrayList<>();
+        long totalSize = 0;
+
+        try (ArchiveInputStream<?> archiveInputStream = new TarArchiveInputStream(source)) {
+            ArchiveEntry archiveEntry;
+            while ((archiveEntry = archiveInputStream.getNextEntry()) != null) {
+                if (archiveEntry.isDirectory()) {
+                    continue;
+                }
+
+                String entryName = archiveEntry.getName();
+                if (isOsMetadataEntry(entryName)) {
+                    continue;
+                }
+
+                if (entries.size() >= maxFileCount) {
+                    throw new IllegalArgumentException(
+                            "Too many files: more than " + maxFileCount
+                    );
+                }
+
+                String normalizedPath = SkillPackagePolicy.normalizeEntryPath(entryName);
+                byte[] content = readEntry(archiveInputStream, normalizedPath);
+                totalSize += content.length;
+                if (totalSize > maxTotalPackageSize) {
+                    throw new IllegalArgumentException(
+                            "Package too large: " + totalSize + " bytes (max: "
+                                    + maxTotalPackageSize + ")"
+                    );
+                }
+
+                entries.add(new PackageEntry(
+                        normalizedPath,
+                        content,
+                        content.length,
+                        determineContentType(normalizedPath)
+                ));
+            }
+        }
+
+        return entries;
+    }
+
+    private byte[] readEntry(InputStream inputStream, String path) throws IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        long totalRead = 0;
+        int read;
+        while ((read = inputStream.read(buffer)) != -1) {
+            totalRead += read;
+            if (totalRead > maxSingleFileSize) {
+                throw new IllegalArgumentException(
+                        "File too large: " + path + " (" + totalRead + " bytes, max: "
+                                + maxSingleFileSize + ")"
+                );
+            }
+            outputStream.write(buffer, 0, read);
+        }
+        return outputStream.toByteArray();
     }
 
     public ExtractionResult extractWithWarnings(MultipartFile file) throws IOException {
-        List<PackageEntry> entries = extract(file);
-        return promoteSingleSkillMdDirectory(entries);
+        return new ExtractionResult(extract(file), List.of());
     }
 
     /**
@@ -119,51 +221,6 @@ public class SkillPackageArchiveExtractor {
                 .toList();
     }
 
-    static ExtractionResult promoteSingleSkillMdDirectory(List<PackageEntry> entries) {
-        boolean hasRootSkillMd = entries.stream()
-                .anyMatch(e -> SkillPackagePolicy.SKILL_MD_PATH.equals(e.path()));
-        if (hasRootSkillMd) {
-            return new ExtractionResult(entries, List.of());
-        }
-
-        Set<String> skillMdDirs = new HashSet<>();
-        for (PackageEntry entry : entries) {
-            int slashIndex = entry.path().indexOf('/');
-            if (slashIndex > 0) {
-                String relativePath = entry.path().substring(slashIndex + 1);
-                if (SkillPackagePolicy.SKILL_MD_PATH.equals(relativePath)) {
-                    skillMdDirs.add(entry.path().substring(0, slashIndex));
-                }
-            }
-        }
-
-        if (skillMdDirs.isEmpty()) {
-            return new ExtractionResult(entries, List.of());
-        }
-        if (skillMdDirs.size() > 1) {
-            throw new IllegalArgumentException(
-                    "Ambiguous package: SKILL.md found in multiple directories: " + skillMdDirs);
-        }
-
-        String prefix = skillMdDirs.iterator().next() + "/";
-        List<PackageEntry> promoted = new ArrayList<>();
-        List<String> warnings = new ArrayList<>();
-
-        for (PackageEntry entry : entries) {
-            if (entry.path().startsWith(prefix)) {
-                promoted.add(new PackageEntry(
-                        entry.path().substring(prefix.length()),
-                        entry.content(),
-                        entry.size(),
-                        entry.contentType()));
-            } else {
-                warnings.add("Ignored file outside skill directory: " + entry.path());
-            }
-        }
-
-        return new ExtractionResult(promoted, warnings);
-    }
-
     private static boolean isOsMetadataEntry(String name) {
         String normalized = name.replace('\\', '/');
         if (normalized.startsWith("__MACOSX/") || normalized.equals("__MACOSX")) return true;
@@ -172,21 +229,7 @@ public class SkillPackageArchiveExtractor {
     }
 
     private byte[] readEntry(ZipInputStream zis, String path) throws IOException {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        byte[] buffer = new byte[8192];
-        long totalRead = 0;
-        int read;
-        while ((read = zis.read(buffer)) != -1) {
-            totalRead += read;
-            if (totalRead > maxSingleFileSize) {
-                throw new IllegalArgumentException(
-                        "File too large: " + path + " (" + totalRead + " bytes, max: "
-                                + maxSingleFileSize + ")"
-                );
-            }
-            outputStream.write(buffer, 0, read);
-        }
-        return outputStream.toByteArray();
+        return readEntry((InputStream) zis, path);
     }
 
     private String determineContentType(String filename) {

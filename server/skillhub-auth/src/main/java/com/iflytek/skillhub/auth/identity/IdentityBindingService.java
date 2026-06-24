@@ -55,13 +55,23 @@ public class IdentityBindingService {
             }
             user = userRepo.save(user);
         } else {
-            user = new UserAccount(
-                "usr_" + UUID.randomUUID(),
-                claims.providerLogin(),
-                claims.email(),
-                (String) claims.extra().get("avatar_url")
-            );
-            user.setStatus(initialStatus);
+            String resolvedUserId = resolveUserId(claims);
+            user = userRepo.findById(resolvedUserId)
+                .orElseGet(() -> {
+                    UserAccount created = new UserAccount(
+                        resolvedUserId,
+                        claims.providerLogin(),
+                        claims.email(),
+                        (String) claims.extra().get("avatar_url")
+                    );
+                    created.setStatus(initialStatus);
+                    return created;
+                });
+            user.setDisplayName(claims.providerLogin());
+            if (claims.email() != null) user.setEmail(claims.email());
+            if (claims.extra().get("avatar_url") != null) {
+                user.setAvatarUrl((String) claims.extra().get("avatar_url"));
+            }
             user = userRepo.save(user);
             if (initialStatus == UserStatus.ACTIVE) {
                 globalNamespaceMembershipService.ensureMember(user.getId());
@@ -104,7 +114,7 @@ public class IdentityBindingService {
         }
 
         UserAccount user = new UserAccount(
-            "usr_" + UUID.randomUUID(),
+            resolveUserId(claims),
             claims.providerLogin(),
             claims.email(),
             (String) claims.extra().get("avatar_url")
@@ -114,5 +124,12 @@ public class IdentityBindingService {
 
         IdentityBinding binding = new IdentityBinding(user.getId(), claims.provider(), claims.subject(), claims.providerLogin());
         bindingRepo.save(binding);
+    }
+
+    private String resolveUserId(OAuthClaims claims) {
+        if ("feishu".equals(claims.provider())) {
+            return "feishu:" + claims.subject();
+        }
+        return "usr_" + UUID.randomUUID();
     }
 }

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { SkillSummary, SkillDetail, SkillVersion, SkillVersionDetail, SkillVersionCompare, SkillFile, SearchParams, PagedResponse, PublishResult } from '@/api/types'
+import type { SkillSummary, SkillDetail, SkillVersion, SkillVersionDetail, SkillVersionCompare, SkillFile, SearchParams, PagedResponse, PublishResult, BatchPublishResult } from '@/api/types'
 import { fetchJson, fetchText, getCsrfHeaders, skillLifecycleApi, WEB_API_PREFIX } from '@/api/client'
 import { clearDeletedSkillQueries } from '@/features/skill/skill-delete-flow'
 import { getSkillDetailQueryKey } from './query-keys'
@@ -56,6 +56,30 @@ async function publishSkill(params: { namespace: string; file: File; visibility:
     headers: getCsrfHeaders(),
     body: formData,
     timeoutMs: PUBLISH_REQUEST_TIMEOUT_MS,
+  })
+}
+
+async function publishSkillsBatch(params: {
+  namespace: string
+  files: File[]
+  visibility: string
+  confirmWarnings?: boolean
+}): Promise<BatchPublishResult> {
+  const cleanNamespace = params.namespace.startsWith('@') ? params.namespace.slice(1) : params.namespace
+  const formData = new FormData()
+  for (const file of params.files) {
+    formData.append('files', file)
+  }
+  formData.append('visibility', params.visibility)
+  formData.append('confirmWarnings', String(params.confirmWarnings === true))
+
+  const timeoutMs = PUBLISH_REQUEST_TIMEOUT_MS + Math.max(0, params.files.length - 1) * 30_000
+
+  return fetchJson<BatchPublishResult>(`${WEB_API_PREFIX}/skills/${cleanNamespace}/publish-batch`, {
+    method: 'POST',
+    headers: getCsrfHeaders(),
+    body: formData,
+    timeoutMs,
   })
 }
 
@@ -136,6 +160,20 @@ export function usePublishSkill() {
 
   return useMutation({
     mutationFn: publishSkill,
+    meta: {
+      skipGlobalErrorHandler: true,
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['skills'] })
+    },
+  })
+}
+
+export function usePublishSkillsBatch() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: publishSkillsBatch,
     meta: {
       skipGlobalErrorHandler: true,
     },

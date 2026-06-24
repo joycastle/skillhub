@@ -1,5 +1,6 @@
 package com.iflytek.skillhub.service;
 
+import com.iflytek.skillhub.config.SkillGovernanceProperties;
 import com.iflytek.skillhub.auth.rbac.PlatformPrincipal;
 import com.iflytek.skillhub.domain.namespace.Namespace;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
@@ -38,11 +39,15 @@ class SkillDeleteAppServiceTest {
     @Mock
     private NamespaceRepository namespaceRepository;
 
+    private SkillGovernanceProperties governanceProperties;
+
     private SkillDeleteAppService service;
 
     @BeforeEach
     void setUp() {
-        service = new SkillDeleteAppService(skillRepository, namespaceRepository, skillHardDeleteService, searchIndexService);
+        governanceProperties = new SkillGovernanceProperties();
+        governanceProperties.setEnabled(true);
+        service = new SkillDeleteAppService(skillRepository, namespaceRepository, skillHardDeleteService, searchIndexService, governanceProperties);
     }
 
     @Test

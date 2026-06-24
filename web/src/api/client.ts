@@ -18,6 +18,7 @@ import type {
   PromotionTask,
   AuditLogItem,
   SkillSummary,
+  SkillRepository,
   SkillReport,
   GovernanceSummary,
   GovernanceInboxItem,
@@ -617,6 +618,12 @@ export const labelApi = {
       }),
       body: JSON.stringify({ items }),
     })
+  },
+}
+
+export const repositoryApi = {
+  async list(): Promise<SkillRepository[]> {
+    return fetchJson<SkillRepository[]>(`${WEB_API_PREFIX}/repositories`)
   },
 }
 

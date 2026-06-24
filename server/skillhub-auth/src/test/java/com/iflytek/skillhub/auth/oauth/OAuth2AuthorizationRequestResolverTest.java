@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import com.iflytek.skillhub.auth.oauth.FeishuOAuth2UserService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -33,7 +34,8 @@ class OAuth2AuthorizationRequestResolverTest {
         OAuthLoginFlowService oauthLoginFlowService = new OAuthLoginFlowService(
                 java.util.List.of(),
                 mock(AccessPolicy.class),
-                mock(IdentityBindingService.class)
+                mock(IdentityBindingService.class),
+                mock(FeishuOAuth2UserService.class)
         );
         resolver = new SkillHubOAuth2AuthorizationRequestResolver(
                 new InMemoryClientRegistrationRepository(github),

@@ -20,12 +20,14 @@ import com.iflytek.skillhub.domain.skill.metadata.SkillMetadata;
 import com.iflytek.skillhub.domain.skill.metadata.SkillMetadataParser;
 import com.iflytek.skillhub.domain.skill.validation.PackageEntry;
 import com.iflytek.skillhub.domain.skill.validation.PrePublishValidator;
+import com.iflytek.skillhub.domain.skill.validation.SkillPackagePolicy;
 import com.iflytek.skillhub.domain.skill.validation.SkillPackageValidator;
 import com.iflytek.skillhub.domain.skill.validation.ValidationResult;
 import com.iflytek.skillhub.storage.ObjectStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,6 +87,9 @@ public class SkillPublishService {
     private final SkillStorageDeletionCompensationService compensationService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final boolean publishAutoPublish;
+    private final boolean openRepositoryPublish;
+    private final Set<String> openRepositorySlugs;
 
     public SkillPublishService(
             NamespaceRepository namespaceRepository,
@@ -101,7 +106,10 @@ public class SkillPublishService {
             SecurityScanService securityScanService,
             SkillStorageDeletionCompensationService compensationService,
             ApplicationEventPublisher eventPublisher,
-            Clock clock) {
+            Clock clock,
+            @Value("${skillhub.publish.auto-publish:false}") boolean publishAutoPublish,
+            @Value("${skillhub.repositories.open-publish:false}") boolean openRepositoryPublish,
+            @Value("${skillhub.repositories.open-publish-slugs:global}") String openRepositorySlugsCsv) {
         this.namespaceRepository = namespaceRepository;
         this.namespaceMemberRepository = namespaceMemberRepository;
         this.skillRepository = skillRepository;
@@ -117,6 +125,25 @@ public class SkillPublishService {
         this.compensationService = compensationService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
+        this.publishAutoPublish = publishAutoPublish;
+        this.openRepositoryPublish = openRepositoryPublish;
+        this.openRepositorySlugs = parseOpenRepositorySlugs(openRepositorySlugsCsv);
+    }
+
+    private static Set<String> parseOpenRepositorySlugs(String csv) {
+        if (csv == null || csv.isBlank()) {
+            return Set.of("global");
+        }
+        return java.util.Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    private boolean isOpenPublishNamespace(String namespaceSlug) {
+        return openRepositoryPublish
+                && namespaceSlug != null
+                && openRepositorySlugs.contains(namespaceSlug);
     }
 
     public record DryRunResult(
@@ -164,7 +191,7 @@ public class SkillPublishService {
 
         // 2. Check membership
         boolean isSuperAdmin = platformRoles.contains("SUPER_ADMIN");
-        if (!isSuperAdmin) {
+        if (!isSuperAdmin && !isOpenPublishNamespace(namespaceSlug)) {
             var member = namespaceMemberRepository.findByNamespaceIdAndUserId(namespace.getId(), publisherId);
             if (member.isEmpty()) {
                 errors.add("Publisher is not a member of namespace: " + namespaceSlug);
@@ -184,12 +211,9 @@ public class SkillPublishService {
         }
 
         // 4. Parse SKILL.md
-        PackageEntry skillMd = entries.stream()
-                .filter(e -> e.path().equals("SKILL.md"))
-                .findFirst()
-                .orElse(null);
+        PackageEntry skillMd = SkillPackagePolicy.findUniqueSkillMd(entries).orElse(null);
         if (skillMd == null) {
-            errors.add("Missing required file: SKILL.md at root");
+            errors.add("Missing required file: SKILL.md");
             return new DryRunResult(false, errors, warnings, null, null);
         }
 
@@ -340,7 +364,7 @@ public class SkillPublishService {
         boolean isSuperAdmin = platformRoles.contains("SUPER_ADMIN");
 
         // 2. Check publisher is member unless SUPER_ADMIN short-circuits permission checks
-        if (!isSuperAdmin && !bypassMembershipCheck) {
+        if (!isSuperAdmin && !bypassMembershipCheck && !isOpenPublishNamespace(namespaceSlug)) {
             namespaceMemberRepository.findByNamespaceIdAndUserId(namespace.getId(), publisherId)
                     .orElseThrow(() -> new DomainBadRequestException("error.skill.publish.publisher.notMember", namespaceSlug));
         }
@@ -354,9 +378,7 @@ public class SkillPublishService {
         }
 
         // 4. Parse SKILL.md
-        PackageEntry skillMd = entries.stream()
-                .filter(e -> e.path().equals("SKILL.md"))
-                .findFirst()
+        PackageEntry skillMd = SkillPackagePolicy.findUniqueSkillMd(entries)
                 .orElseThrow(() -> new DomainBadRequestException("error.skill.publish.skillMd.notFound"));
 
         String skillMdContent = new String(skillMd.content());
@@ -444,7 +466,7 @@ public class SkillPublishService {
         // 8. Create SkillVersion
         SkillVersion version = new SkillVersion(skill.getId(), metadata.version(), publisherId);
         version.setRequestedVisibility(visibility);
-        boolean autoPublish = forceAutoPublish || isSuperAdmin;
+        boolean autoPublish = forceAutoPublish || isSuperAdmin || publishAutoPublish;
         if (autoPublish) {
             version.setStatus(SkillVersionStatus.PUBLISHED);
             version.setPublishedAt(currentTime());

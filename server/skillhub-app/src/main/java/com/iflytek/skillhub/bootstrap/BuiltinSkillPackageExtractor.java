@@ -26,7 +26,7 @@ public class BuiltinSkillPackageExtractor {
                     + String.join("; ", result.warnings()));
         }
         boolean hasSkillMd = result.entries().stream()
-                .anyMatch(entry -> SkillPackagePolicy.SKILL_MD_PATH.equals(entry.path()));
+                .anyMatch(entry -> SkillPackagePolicy.isSkillMdPath(entry.path()));
         if (!hasSkillMd) {
             throw new IllegalArgumentException("Built-in skill package must contain " + SkillPackagePolicy.SKILL_MD_PATH);
         }

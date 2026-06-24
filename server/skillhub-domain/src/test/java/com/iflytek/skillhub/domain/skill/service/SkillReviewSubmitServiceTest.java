@@ -52,7 +52,8 @@ class SkillReviewSubmitServiceTest {
                 reviewTaskRepository,
                 null, // namespaceMemberRepository not used in these tests
                 eventPublisher,
-                Clock.systemUTC()
+                Clock.systemUTC(),
+                true
         );
     }
 

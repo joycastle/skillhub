@@ -12,6 +12,7 @@ import com.iflytek.skillhub.dto.ProfileReviewSummaryResponse;
 import com.iflytek.skillhub.service.AdminProfileReviewAppService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/v1/admin/profile-reviews")
+@ConditionalOnProperty(name = "skillhub.governance.enabled", havingValue = "true", matchIfMissing = true)
 public class AdminProfileReviewController extends BaseApiController {
 
     private final AdminProfileReviewAppService appService;

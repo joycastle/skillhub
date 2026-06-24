@@ -12,6 +12,7 @@ import com.iflytek.skillhub.dto.TokenCreateResponse;
 import com.iflytek.skillhub.dto.TokenExpirationUpdateRequest;
 import com.iflytek.skillhub.dto.TokenSummaryResponse;
 import jakarta.validation.Valid;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/v1/tokens")
+@ConditionalOnProperty(name = "skillhub.auth.api-tokens.enabled", havingValue = "true", matchIfMissing = true)
 public class TokenController extends BaseApiController {
 
     private final ApiTokenService apiTokenService;

@@ -124,6 +124,12 @@ export interface ManagedNamespace extends Namespace {
   canDelete: boolean
 }
 
+export interface SkillRepository {
+  slug: string
+  displayName: string
+  defaultRepository: boolean
+}
+
 export interface NamespaceMember {
   id: number
   userId: string
@@ -350,6 +356,24 @@ export interface PublishResult {
   status: string
   fileCount: number
   totalSize: number
+}
+
+export interface BatchPublishItemResult {
+  filename: string
+  success: boolean
+  needsConfirmation: boolean
+  publish?: PublishResult | null
+  errorCode?: string | null
+  errorMessage?: string | null
+  warnings?: string[]
+}
+
+export interface BatchPublishResult {
+  total: number
+  succeeded: number
+  failed: number
+  needsConfirmation: number
+  items: BatchPublishItemResult[]
 }
 
 export interface SkillDeleteResult {

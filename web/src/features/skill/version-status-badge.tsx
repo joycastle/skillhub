@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { normalizeVersionStatusForDisplay } from '@/shared/lib/version-status-display'
 import { cn } from '@/shared/lib/utils'
 
 type VersionStatus =
@@ -59,8 +60,9 @@ export const versionRowStyles: Record<VersionStatus, string> = {
 }
 
 export function getVersionRowStyle(status?: string): string {
-  if (!status) return ''
-  return versionRowStyles[status as VersionStatus] ?? ''
+  const displayStatus = normalizeVersionStatusForDisplay(status)
+  if (!displayStatus) return ''
+  return versionRowStyles[displayStatus as VersionStatus] ?? ''
 }
 
 export function VersionStatusBadge({
@@ -71,12 +73,13 @@ export function VersionStatusBadge({
   className?: string
 }) {
   const { t } = useTranslation()
-  if (!status) return null
+  const displayStatus = normalizeVersionStatusForDisplay(status)
+  if (!displayStatus) return null
 
-  const style = statusStyles[status as VersionStatus] ?? statusStyles.DRAFT
-  const label = i18nKeys[status as VersionStatus]
-    ? t(i18nKeys[status as VersionStatus])
-    : status
+  const style = statusStyles[displayStatus as VersionStatus] ?? statusStyles.DRAFT
+  const label = i18nKeys[displayStatus as VersionStatus]
+    ? t(i18nKeys[displayStatus as VersionStatus])
+    : displayStatus
 
   return (
     <span

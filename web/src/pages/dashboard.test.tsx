@@ -30,10 +30,6 @@ vi.mock('@/shared/hooks/use-user-queries', () => ({
   }),
 }))
 
-vi.mock('@/shared/lib/governance-access', () => ({
-  canViewGovernanceCenter: () => false,
-}))
-
 vi.mock('@/shared/lib/skill-lifecycle', () => ({
   getHeadlineVersion: () => null,
 }))

@@ -50,10 +50,14 @@ vi.mock('@/shared/ui/card', () => ({
 
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
   usePublishSkill: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePublishSkillsBatch: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
-vi.mock('@/shared/hooks/use-namespace-queries', () => ({
-  useMyNamespaces: () => ({ data: [], isLoading: false }),
+vi.mock('@/shared/hooks/use-skill-repositories', () => ({
+  useSkillRepositories: () => ({
+    data: [{ slug: 'global', displayName: 'JoyHub公共库', defaultRepository: true }],
+    isLoading: false,
+  }),
 }))
 
 vi.mock('@/shared/components/dashboard-page-header', () => ({
@@ -93,8 +97,8 @@ describe('PublishPage', () => {
 
     renderToStaticMarkup(createElement(PublishPage))
 
-    expect(selectRecords[0]?.value).toBe('__select_namespace__')
-    expect(selectRecords[1]?.value).toBe('PUBLIC')
+    expect(selectRecords[0]?.value).toBe('__select_repository__')
+    expect(selectRecords[1]?.value).toBe('WAREHOUSE')
   })
 
   it('exports a named component function', () => {

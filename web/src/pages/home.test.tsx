@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
 
-// HomePage is a component-only page. We verify it exports correctly
-// and renders key sections.
-
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
 }))
@@ -29,8 +26,8 @@ vi.mock('@/shared/components/skeleton-loader', () => ({
   SkeletonList: () => null,
 }))
 
-vi.mock('@/shared/components/quick-start', () => ({
-  QuickStartSection: () => null,
+vi.mock('@/shared/components/brand-mark', () => ({
+  BrandMark: () => null,
 }))
 
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
@@ -59,7 +56,7 @@ describe('HomePage', () => {
   it('renders the hero section with brand name', () => {
     const html = renderToStaticMarkup(<HomePage />)
 
-    expect(html).toContain('SkillHub')
-    expect(html).toContain('home.subtitle')
+    expect(html).toContain('brand.name')
+    expect(html).toContain('brand.tagline')
   })
 })

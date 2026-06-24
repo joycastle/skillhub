@@ -1,5 +1,6 @@
 package com.iflytek.skillhub.service;
 
+import com.iflytek.skillhub.config.SkillGovernanceProperties;
 import com.iflytek.skillhub.auth.rbac.PlatformPrincipal;
 import com.iflytek.skillhub.domain.namespace.Namespace;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
@@ -28,15 +29,18 @@ public class SkillDeleteAppService {
     private final NamespaceRepository namespaceRepository;
     private final SkillHardDeleteService skillHardDeleteService;
     private final SearchIndexService searchIndexService;
+    private final SkillGovernanceProperties governanceProperties;
 
     public SkillDeleteAppService(SkillRepository skillRepository,
                                  NamespaceRepository namespaceRepository,
                                  SkillHardDeleteService skillHardDeleteService,
-                                 SearchIndexService searchIndexService) {
+                                 SearchIndexService searchIndexService,
+                                 SkillGovernanceProperties governanceProperties) {
         this.skillRepository = skillRepository;
         this.namespaceRepository = namespaceRepository;
         this.skillHardDeleteService = skillHardDeleteService;
         this.searchIndexService = searchIndexService;
+        this.governanceProperties = governanceProperties;
     }
 
     @Transactional
@@ -164,6 +168,9 @@ public class SkillDeleteAppService {
     private boolean canDeleteFromPortal(Skill skill, PlatformPrincipal principal) {
         if (principal == null) {
             return false;
+        }
+        if (!governanceProperties.isEnabled()) {
+            return principal.platformRoles().contains("SUPER_ADMIN");
         }
         return principal.platformRoles().contains("SUPER_ADMIN")
                 || principal.userId().equals(skill.getOwnerId());

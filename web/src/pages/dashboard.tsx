@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '@/features/auth/use-auth'
 import type { SkillSummary } from '@/api/types'
 import { useMySkills } from '@/shared/hooks/use-user-queries'
-import { canViewGovernanceCenter } from '@/shared/lib/governance-access'
+import { useSkillRepositories } from '@/shared/hooks/use-skill-repositories'
+import { resolveRepositoryDisplayName } from '@/shared/lib/repository-display'
+import { isApiTokensEnabled } from '@/shared/config/features'
 import { getHeadlineVersion } from '@/shared/lib/skill-lifecycle'
 import { TokenList } from '@/features/token/token-list'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
@@ -22,8 +24,9 @@ export function DashboardPage() {
   const skillPreviewPageSize = DASHBOARD_PREVIEW_LIMIT
   const { t } = useTranslation()
   const { user } = useAuth()
-  const governanceVisible = canViewGovernanceCenter(user?.platformRoles)
+  const apiTokensEnabled = isApiTokensEnabled()
   const { data: skillPage, isLoading: isLoadingSkills } = useMySkills({ page: 0, size: skillPreviewPageSize })
+  const { data: repositories } = useSkillRepositories()
   const skillPreview = limitPreviewItems<SkillSummary>(skillPage?.items ?? [], DASHBOARD_PREVIEW_LIMIT)
 
   return (
@@ -77,7 +80,7 @@ export function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className={`grid grid-cols-1 gap-4 ${governanceVisible ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+      <div className={`grid grid-cols-1 gap-4 ${apiTokensEnabled ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
         <Card className="p-5">
           <div className="text-sm text-muted-foreground">{t('dashboard.starsAndRatings')}</div>
           <Link to="/dashboard/stars" className="mt-2 inline-block font-semibold text-primary hover:underline">
@@ -96,25 +99,11 @@ export function DashboardPage() {
             {t('dashboard.openMySkills')}
           </Link>
         </Card>
-        <Card className="p-5">
-          <div className="text-sm text-muted-foreground">{t('dashboard.credentials')}</div>
-          <Link to="/dashboard/tokens" className="mt-2 inline-block font-semibold text-primary hover:underline">
-            {t('dashboard.openTokens')}
-          </Link>
-        </Card>
-        {governanceVisible ? (
+        {apiTokensEnabled ? (
           <Card className="p-5">
-            <div className="text-sm text-muted-foreground">{t('dashboard.governanceTitle')}</div>
-            <Link to="/dashboard/governance" className="mt-2 inline-block font-semibold text-primary hover:underline">
-              {t('dashboard.viewGovernance')}
-            </Link>
-          </Card>
-        ) : null}
-        {governanceVisible ? (
-          <Card className="p-5">
-            <div className="text-sm text-muted-foreground">{t('dashboard.reportsTitle')}</div>
-            <Link to="/dashboard/reports" className="mt-2 inline-block font-semibold text-primary hover:underline">
-              {t('dashboard.viewReports')}
+            <div className="text-sm text-muted-foreground">{t('dashboard.credentials')}</div>
+            <Link to="/dashboard/tokens" className="mt-2 inline-block font-semibold text-primary hover:underline">
+              {t('dashboard.openTokens')}
             </Link>
           </Card>
         ) : null}
@@ -148,7 +137,9 @@ export function DashboardPage() {
                         className="rounded-lg border border-border/60 px-3 py-3 transition-colors hover:bg-accent/40"
                       >
                         <div className="truncate text-sm font-medium">{skill.displayName}</div>
-                        <div className="mt-1 truncate text-xs text-muted-foreground">@{skill.namespace}</div>
+                        <div className="mt-1 truncate text-xs text-muted-foreground">
+                          {resolveRepositoryDisplayName(skill.namespace, repositories)}
+                        </div>
                         {getHeadlineVersion(skill) ? (
                           <div className="mt-2 inline-flex rounded-full bg-secondary px-2 py-1 text-xs text-muted-foreground">
                             v{getHeadlineVersion(skill)?.version}
@@ -172,9 +163,11 @@ export function DashboardPage() {
           </Card>
         </div>
 
-        <div className="space-y-4">
-          <TokenList />
-        </div>
+        {apiTokensEnabled ? (
+          <div className="space-y-4">
+            <TokenList />
+          </div>
+        ) : null}
       </div>
     </div>
   )

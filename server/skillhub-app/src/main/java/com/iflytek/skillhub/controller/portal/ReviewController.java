@@ -14,6 +14,7 @@ import com.iflytek.skillhub.service.AuditRequestContext;
 import com.iflytek.skillhub.service.GovernanceWorkflowAppService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping({"/api/v1/reviews", "/api/web/reviews"})
+@ConditionalOnProperty(name = "skillhub.governance.enabled", havingValue = "true", matchIfMissing = true)
 public class ReviewController extends BaseApiController {
 
     private final GovernanceWorkflowAppService governanceWorkflowAppService;

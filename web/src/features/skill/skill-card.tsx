@@ -3,6 +3,8 @@ import { useAuth } from '@/features/auth/use-auth'
 import { useStar } from '@/features/social/use-star'
 import { Card } from '@/shared/ui/card'
 import { NamespaceBadge } from '@/shared/components/namespace-badge'
+import { useSkillRepositories } from '@/shared/hooks/use-skill-repositories'
+import { resolveRepositoryDisplayName } from '@/shared/lib/repository-display'
 import { getHeadlineVersion } from '@/shared/lib/skill-lifecycle'
 import { formatCompactCount } from '@/shared/lib/number-format'
 import { Bookmark } from 'lucide-react'
@@ -18,6 +20,7 @@ interface SkillCardProps {
  */
 export function SkillCard({ skill, onClick, highlightStarred = true }: SkillCardProps) {
   const { isAuthenticated } = useAuth()
+  const { data: repositories } = useSkillRepositories()
   const { data: starStatus } = useStar(skill.id, highlightStarred && isAuthenticated)
   const showStarredHighlight = highlightStarred && isAuthenticated && starStatus?.starred
   const headlineVersion = getHeadlineVersion(skill)
@@ -49,7 +52,10 @@ export function SkillCard({ skill, onClick, highlightStarred = true }: SkillCard
             </h3>
           </div>
           <div className="flex items-center gap-2">
-            <NamespaceBadge type="TEAM" name={`@${skill.namespace}`} />
+            <NamespaceBadge
+              type="TEAM"
+              name={resolveRepositoryDisplayName(skill.namespace, repositories)}
+            />
           </div>
         </div>
 
